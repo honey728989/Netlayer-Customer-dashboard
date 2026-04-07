@@ -14,6 +14,51 @@ function computeDueAt(priority: string, responseMinutes: number, resolutionMinut
 const routes: FastifyPluginAsync = async (app) => {
   const eventBus = new EventBus(process.env.REDIS_URL!);
 
+  app.get("/tickets/sla-stats", { preHandler: [requireAuth] }, async (request) => {
+    const user = request.auth!;
+    const result = await query<{
+      open: string;
+      in_progress: string;
+      at_risk: string;
+      breached: string;
+      resolved_today: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          COUNT(*) FILTER (WHERE t.status = 'OPEN')::text AS open,
+          COUNT(*) FILTER (WHERE t.status = 'IN_PROGRESS')::text AS in_progress,
+          COUNT(*) FILTER (
+            WHERE t.status IN ('OPEN', 'IN_PROGRESS')
+              AND t.resolution_due_at IS NOT NULL
+              AND t.resolution_due_at <= NOW() + INTERVAL '30 minutes'
+              AND t.resolution_due_at > NOW()
+          )::text AS at_risk,
+          COUNT(*) FILTER (
+            WHERE t.status IN ('OPEN', 'IN_PROGRESS')
+              AND t.resolution_due_at IS NOT NULL
+              AND t.resolution_due_at <= NOW()
+          )::text AS breached,
+          COUNT(*) FILTER (
+            WHERE t.status = 'RESOLVED'
+              AND t.resolved_at >= date_trunc('day', NOW())
+          )::text AS resolved_today
+        FROM tickets t
+        ${user.customerId ? "WHERE t.customer_id = $1" : ""}
+      `,
+      user.customerId ? [user.customerId] : []
+    );
+
+    const row = result.rows[0];
+    return {
+      open: Number(row?.open ?? 0),
+      inProgress: Number(row?.in_progress ?? 0),
+      atRisk: Number(row?.at_risk ?? 0),
+      breached: Number(row?.breached ?? 0),
+      resolvedToday: Number(row?.resolved_today ?? 0)
+    };
+  });
+
   app.get("/tickets", { preHandler: [requireAuth] }, async (request) => {
     const user = request.auth!;
     const result = await query(

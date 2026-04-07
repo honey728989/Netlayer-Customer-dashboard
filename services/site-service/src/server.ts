@@ -4,6 +4,42 @@ import { ServiceEnv, createServiceApp, query, requireAuth } from "@netlayer/plat
 import { buildCustomerDashboardUrl } from "./grafana";
 
 const routes: FastifyPluginAsync = async (app) => {
+  app.get("/sites/stats", { preHandler: [requireAuth] }, async (request) => {
+    const user = request.auth!;
+    const filter = user.customerId ? "WHERE s.customer_id = $1" : "";
+    const params = user.customerId ? [user.customerId] : [];
+
+    const result = await query<{
+      total: string;
+      online: string;
+      offline: string;
+      degraded: string;
+      maintenance: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          COUNT(*)::text AS total,
+          COUNT(*) FILTER (WHERE s.status = 'UP')::text AS online,
+          COUNT(*) FILTER (WHERE s.status = 'DOWN')::text AS offline,
+          COUNT(*) FILTER (WHERE s.status = 'DEGRADED')::text AS degraded,
+          COUNT(*) FILTER (WHERE s.status = 'MAINTENANCE')::text AS maintenance
+        FROM sites s
+        ${filter}
+      `,
+      params
+    );
+
+    const row = result.rows[0];
+    return {
+      total: Number(row?.total ?? 0),
+      online: Number(row?.online ?? 0),
+      offline: Number(row?.offline ?? 0),
+      degraded: Number(row?.degraded ?? 0),
+      maintenance: Number(row?.maintenance ?? 0)
+    };
+  });
+
   app.get("/sites", { preHandler: [requireAuth] }, async (request) => {
     const user = request.auth!;
     const customerFilter = user.customerId ? "WHERE s.customer_id = $1" : "";

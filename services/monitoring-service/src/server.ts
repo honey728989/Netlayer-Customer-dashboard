@@ -43,6 +43,37 @@ function buildZabbixClient() {
 const routes: FastifyPluginAsync = async (app) => {
   const eventBus = new EventBus(process.env.REDIS_URL!);
 
+  app.get("/alerts/count", { preHandler: [requireAuth] }, async (request) => {
+    const user = request.auth!;
+    const result = await query<{
+      total: string;
+      critical: string;
+      warning: string;
+      info: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          COUNT(*) FILTER (WHERE a.status = 'OPEN')::text AS total,
+          COUNT(*) FILTER (WHERE a.status = 'OPEN' AND a.severity IN ('P1', 'P2'))::text AS critical,
+          COUNT(*) FILTER (WHERE a.status = 'OPEN' AND a.severity = 'P3')::text AS warning,
+          COUNT(*) FILTER (WHERE a.status = 'OPEN' AND a.severity = 'P4')::text AS info
+        FROM alerts a
+        JOIN sites s ON s.id = a.site_id
+        ${user.customerId ? "WHERE s.customer_id = $1" : ""}
+      `,
+      user.customerId ? [user.customerId] : []
+    );
+
+    const row = result.rows[0];
+    return {
+      total: Number(row?.total ?? 0),
+      critical: Number(row?.critical ?? 0),
+      warning: Number(row?.warning ?? 0),
+      info: Number(row?.info ?? 0)
+    };
+  });
+
   app.get("/alerts", { preHandler: [requireAuth] }, async (request) => {
     const user = request.auth!;
     const result = await query(
