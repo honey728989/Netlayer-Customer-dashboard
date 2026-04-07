@@ -20,6 +20,7 @@ export type BackendRole =
 export interface AuthUser {
   userId: string
   email: string
+  name?: string
   roles: BackendRole[]
   role: UserRole
   avatarUrl?: string

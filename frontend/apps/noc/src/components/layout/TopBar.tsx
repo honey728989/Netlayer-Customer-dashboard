@@ -40,6 +40,14 @@ export function TopBar() {
   }
 
   const totalAlerts = criticalCount + warningCount
+  const displayName = user?.name?.trim() || user?.email || 'User'
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'U'
 
   return (
     <header className="flex h-12 shrink-0 items-center border-b border-border bg-surface px-5 gap-4">
@@ -86,15 +94,10 @@ export function TopBar() {
             className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-surface-2 transition-colors"
           >
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/20 text-[10px] font-semibold text-brand">
-              {user?.name
-                .split(' ')
-                .map((w) => w[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase() ?? 'U'}
+              {initials}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-[11px] font-medium text-white leading-none">{user?.name}</p>
+              <p className="text-[11px] font-medium text-white leading-none">{displayName}</p>
               <p className="text-[10px] text-muted capitalize">{user?.role}</p>
             </div>
             <ChevronDown size={12} className="text-muted" />
@@ -103,7 +106,7 @@ export function TopBar() {
           {dropdownOpen && (
             <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-surface-2 py-1 shadow-xl z-50">
               <div className="border-b border-border px-3 py-2">
-                <p className="text-[11px] font-medium text-white">{user?.name}</p>
+                <p className="text-[11px] font-medium text-white">{displayName}</p>
                 <p className="text-[10px] text-muted">{user?.email}</p>
               </div>
               <button

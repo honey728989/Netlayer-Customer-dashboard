@@ -23,6 +23,19 @@ function normalizeUserRole(user: AuthUser) {
   return 'admin' as const
 }
 
+function deriveDisplayName(user: AuthUser) {
+  if (user.name && user.name.trim().length > 0) {
+    return user.name
+  }
+
+  const emailPrefix = user.email.split('@')[0] ?? 'User'
+  return emailPrefix
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
@@ -41,6 +54,7 @@ export function LoginPage() {
       const res = await authApi.login(email, password)
       const normalizedUser = {
         ...res.user,
+        name: deriveDisplayName(res.user),
         role: normalizeUserRole(res.user),
       }
       setAuth(normalizedUser, res.accessToken, res.refreshToken)
