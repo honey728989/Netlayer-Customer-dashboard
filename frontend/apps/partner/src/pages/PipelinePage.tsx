@@ -16,7 +16,7 @@ const STAGES: Array<{ key: Lead['stage']; label: string; color: string }> = [
   { key: 'lost', label: 'Lost', color: '#ff4d4d' },
 ]
 
-function LeadCard({ lead, onDrop }: { lead: Lead; onDrop: (lead: Lead, stage: Lead['stage']) => void }) {
+function LeadCard({ lead }: { lead: Lead }) {
   return (
     <div
       draggable
@@ -75,7 +75,7 @@ function KanbanColumn({
       {/* Cards */}
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
         {leads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} onDrop={() => {}} />
+          <LeadCard key={lead.id} lead={lead} />
         ))}
         {leads.length === 0 && (
           <p className="py-8 text-center text-[10px] text-dim">Drop leads here</p>

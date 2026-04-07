@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Bell, LogOut, Moon, Sun, ChevronDown } from 'lucide-react'
-import { clsx } from 'clsx'
+import { LogOut, Moon, Sun, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
 import { useAlertStore, useUIStore } from '@/store'
 import { authApi } from '@netlayer/api'

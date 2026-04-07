@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useAlerts, useAcknowledgeAlert, useResolveAlert } from '@/hooks/useQueries'
+import { useAlerts } from '@/hooks/useQueries'
 import { useAlertStore } from '@/store'
-import { AlertFeed } from '@/components/alerts/AlertFeed'
-import { SearchInput, Card, KpiCard, DataTable, AlertPriorityBadge, type Column } from '@netlayer/ui'
+import { SearchInput, KpiCard, DataTable, AlertPriorityBadge, type Column } from '@netlayer/ui'
 import { formatDistanceToNow } from 'date-fns'
-import { CheckCheck } from 'lucide-react'
 import type { Alert, AlertPriority } from '@netlayer/api'
 
 const PRIORITY_FILTERS: Array<{ label: string; value: AlertPriority | '' }> = [

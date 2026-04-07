@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { sitesApi, alertsApi, ticketsApi, customersApi, partnersApi } from '@netlayer/api'
 import { queryClient, queryKeys } from '@/services/queryClient'
 import type { QueryParams } from '@netlayer/api'

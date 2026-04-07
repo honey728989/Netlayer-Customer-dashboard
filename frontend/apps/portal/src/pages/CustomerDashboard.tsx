@@ -1,4 +1,4 @@
-import { Activity, Globe, Ticket as TicketIcon, FileText } from 'lucide-react'
+import { Activity, Globe, Ticket as TicketIcon } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
 import { useSites, useTickets } from '@/hooks/useQueries'
 import { KpiCard, Card, StatusPill, DataTable, TicketPriorityBadge, type Column } from '@netlayer/ui'
@@ -22,6 +22,7 @@ export function CustomerDashboard() {
   const { user } = useAuthStore()
   const { data: sites, isLoading: sitesLoading } = useSites({ customerId: user?.organizationId, pageSize: 10 })
   const { data: tickets, isLoading: ticketsLoading } = useTickets({ customerId: user?.organizationId, status: 'open', pageSize: 5 })
+  const displayName = user?.name?.trim() || user?.email || 'Customer'
 
   const onlineSites = sites?.data.filter((s) => s.status === 'online').length ?? 0
   const totalSites = sites?.data.length ?? 0
@@ -31,7 +32,7 @@ export function CustomerDashboard() {
     <div className="space-y-5 p-5">
       <div>
         <h1 className="font-display text-lg font-semibold text-white">
-          Welcome, {user?.name.split(' ')[0]}
+          Welcome, {displayName.split(' ')[0]}
         </h1>
         <p className="text-xs text-muted">{user?.organizationName} · Customer Portal</p>
       </div>

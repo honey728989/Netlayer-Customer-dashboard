@@ -4,7 +4,6 @@ import { formatDistanceToNow } from 'date-fns'
 import {
   useTickets,
   useTicketSlaStats,
-  useUpdateTicket,
 } from '@/hooks/useQueries'
 import {
   KpiCard,
@@ -14,7 +13,7 @@ import {
   TicketPriorityBadge,
   type Column,
 } from '@netlayer/ui'
-import type { Ticket, TicketStatus, TicketPriority } from '@netlayer/api'
+import type { Ticket, TicketStatus } from '@netlayer/api'
 import { NewTicketModal } from '@/components/tickets/NewTicketModal'
 
 const STATUS_OPTIONS: Array<{ label: string; value: TicketStatus | '' }> = [

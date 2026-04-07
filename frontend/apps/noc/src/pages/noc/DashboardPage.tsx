@@ -1,5 +1,5 @@
-import { Globe, Wifi, WifiOff, Ticket, BarChart3, Radio } from 'lucide-react'
-import { KpiCard, Card, PageLoader, ErrorState } from '@netlayer/ui'
+import { Globe, Wifi, WifiOff, Ticket, Radio } from 'lucide-react'
+import { KpiCard, Card, ErrorState } from '@netlayer/ui'
 import { BandwidthChart } from '@/components/charts/BandwidthChart'
 import { AlertFeed } from '@/components/alerts/AlertFeed'
 import { useSiteStats, useAlerts, useTicketSlaStats } from '@/hooks/useQueries'
@@ -157,15 +157,21 @@ export function DashboardPage() {
 
         {/* Ticket SLA summary — 2 cols */}
         <div className="xl:col-span-2">
-          <Card title="Ticket SLA Summary" loading={slaLoading}>
+          <Card title="Ticket SLA Summary">
             <div className="space-y-3">
-              {[
+              {(slaLoading
+                ? Array.from({ length: 5 }, (_, index) => ({
+                    label: `loading-${index}`,
+                    value: '...',
+                    color: '#6b7280',
+                  }))
+                : [
                 { label: 'Open', value: slaStats?.open ?? 0, color: '#00d4ff' },
                 { label: 'In Progress', value: slaStats?.inProgress ?? 0, color: '#9c7bff' },
                 { label: 'At Risk', value: slaStats?.atRisk ?? 0, color: '#ffb300' },
                 { label: 'Breached', value: slaStats?.breached ?? 0, color: '#ff4d4d' },
                 { label: 'Resolved Today', value: slaStats?.resolvedToday ?? 0, color: '#00e676' },
-              ].map(({ label, value, color }) => (
+              ]).map(({ label, value, color }) => (
                 <div key={label} className="flex items-center justify-between">
                   <span className="text-xs text-muted">{label}</span>
                   <span className="font-mono text-sm font-medium" style={{ color }}>

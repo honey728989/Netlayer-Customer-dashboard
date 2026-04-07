@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Download, ExternalLink } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
 import { Card, PageLoader } from '@netlayer/ui'

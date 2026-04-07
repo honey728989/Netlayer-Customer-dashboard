@@ -41,7 +41,7 @@ export function RequireRole({ roles, redirectTo = '/login' }: RequireRoleProps) 
 export function RoleRedirect() {
   const { user, isAuthenticated } = useAuthStore()
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user?.role) {
     return <Navigate to="/login" replace />
   }
 

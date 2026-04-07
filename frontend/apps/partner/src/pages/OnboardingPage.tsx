@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, Circle, ChevronRight } from 'lucide-react'
+import { CheckCircle2, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
 import { usePartnerLeads } from '@/hooks/useQueries'
 import type { Lead } from '@netlayer/api'
