@@ -1,0 +1,3 @@
+import "./fastify";
+
+export {};

@@ -2,6 +2,7 @@ export * from "./circuit-breaker";
 export * from "./config";
 export * from "./db";
 export * from "./events";
+export * from "./fastify";
 export * from "./health";
 export * from "./http";
 export * from "./jwt";

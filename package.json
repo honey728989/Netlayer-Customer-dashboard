@@ -7,10 +7,10 @@
     "services/*"
   ],
   "scripts": {
-    "build": "node ./node_modules/typescript/bin/tsc -b packages/platform services/api-gateway services/auth-service services/billing-service services/monitoring-service services/notification-service services/partner-service services/site-service services/ticket-service services/websocket-service",
+    "build": "node ./node_modules/typescript/bin/tsc -b --force packages/platform services/api-gateway services/auth-service services/billing-service services/monitoring-service services/notification-service services/partner-service services/site-service services/ticket-service services/websocket-service",
     "dev": "npm run dev --workspace @netlayer/api-gateway",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "node ./node_modules/typescript/bin/tsc -b packages/platform services/api-gateway services/auth-service services/billing-service services/monitoring-service services/notification-service services/partner-service services/site-service services/ticket-service services/websocket-service",
+    "typecheck": "node ./node_modules/typescript/bin/tsc -b --force packages/platform services/api-gateway services/auth-service services/billing-service services/monitoring-service services/notification-service services/partner-service services/site-service services/ticket-service services/websocket-service",
     "start": "npm run start --workspace @netlayer/api-gateway"
   },
   "engines": {

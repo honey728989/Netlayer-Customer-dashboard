@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { Job } from "bullmq";
 
 import {
   CircuitBreaker,
@@ -82,7 +83,7 @@ export async function startAlertWorker(queueConfig: QueueConfig, eventBus: Event
   const deadLetterQueue = createPlatformQueue(deadLetterQueueName, queueConfig);
   await addDeadLetterHandlers(alertQueueName, queueConfig, deadLetterQueue);
 
-  createWorker<AlertJob>(alertQueueName, queueConfig, async (job) => {
+  createWorker<AlertJob>(alertQueueName, queueConfig, async (job: Job<AlertJob>) => {
     const alert = await query<{ id: string; severity: string }>(
       process.env.DATABASE_URL!,
       `

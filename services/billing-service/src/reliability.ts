@@ -1,3 +1,5 @@
+import type { Job } from "bullmq";
+
 import {
   QueueConfig,
   addDeadLetterHandlers,
@@ -69,14 +71,22 @@ async function markWebhookDeadLetter(payload: DeadLetterPayload) {
 export async function startWebhookWorker(queueConfig: QueueConfig) {
   const deadLetterQueue = createPlatformQueue(deadLetterQueueName, queueConfig);
   await addDeadLetterHandlers(webhookQueueName, queueConfig, deadLetterQueue, {
-    onRetry: async ({ jobId, attemptsMade, failedReason }) => {
+    onRetry: async ({
+      jobId,
+      attemptsMade,
+      failedReason
+    }: {
+      jobId?: string;
+      attemptsMade: number;
+      failedReason?: string;
+    }) => {
       if (!jobId) {
         return;
       }
       await markWebhookRetry(jobId, attemptsMade, failedReason);
     },
     onDeadLetter: markWebhookDeadLetter,
-    onCompleted: async ({ jobId }) => {
+    onCompleted: async ({ jobId }: { jobId?: string }) => {
       if (!jobId) {
         return;
       }
@@ -98,7 +108,7 @@ export async function startWebhookWorker(queueConfig: QueueConfig) {
     }
   });
 
-  createWorker<ZohoWebhookJob>(webhookQueueName, queueConfig, async (job) => {
+  createWorker<ZohoWebhookJob>(webhookQueueName, queueConfig, async (job: Job<ZohoWebhookJob>) => {
     await query(
       process.env.DATABASE_URL!,
       `
