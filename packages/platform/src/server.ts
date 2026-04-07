@@ -78,18 +78,24 @@ export async function createServiceApp(
         const payload = await request.jwtVerify<{
           userId: string;
           email: string;
+          fullName?: string;
           roles: string[];
           customerId?: string;
           partnerId?: string;
+          organizationName?: string;
+          accountScope?: "platform" | "customer" | "partner" | "internal";
         }>({
         });
 
         request.auth = {
           userId: payload.userId,
           email: payload.email,
+          fullName: payload.fullName,
           roles: payload.roles as never,
           customerId: payload.customerId,
-          partnerId: payload.partnerId
+          partnerId: payload.partnerId,
+          organizationName: payload.organizationName,
+          accountScope: payload.accountScope
         };
       } catch {
         request.auth = undefined;

@@ -4,14 +4,20 @@ export type RoleName =
   | "ENTERPRISE_ADMIN"
   | "ENTERPRISE_USER"
   | "PARTNER_ADMIN"
-  | "PARTNER_USER";
+  | "PARTNER_USER"
+  | "SALES_EXECUTIVE"
+  | "FINANCE_USER"
+  | "FIELD_ENGINEER";
 
 export interface AuthenticatedUser {
   userId: string;
   email: string;
+  fullName?: string;
   roles: RoleName[];
   customerId?: string;
   partnerId?: string;
+  organizationName?: string;
+  accountScope?: "platform" | "customer" | "partner" | "internal";
 }
 
 export interface JwtPayload extends AuthenticatedUser {

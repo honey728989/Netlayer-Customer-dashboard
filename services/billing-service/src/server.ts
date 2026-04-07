@@ -23,6 +23,49 @@ const routes: FastifyPluginAsync = async (app) => {
   };
   await startWebhookWorker(queueConfig);
 
+  app.get("/finance/summary", { preHandler: [requireAuth] }, async () => {
+    const [invoiceStats, paymentStats] = await Promise.all([
+      query<{
+        total_outstanding: string;
+        paid_invoices: string;
+        overdue_invoices: string;
+      }>(
+        process.env.DATABASE_URL!,
+        `
+          SELECT
+            COALESCE(SUM((payload ->> 'total')::numeric), 0) FILTER (WHERE COALESCE(payment_status, status) <> 'paid')::text AS total_outstanding,
+            COUNT(*) FILTER (WHERE COALESCE(payment_status, status) = 'paid')::text AS paid_invoices,
+            COUNT(*) FILTER (WHERE status IN ('overdue', 'sent'))::text AS overdue_invoices
+          FROM billing_invoices
+        `
+      ),
+      query<{
+        pending_payments: string;
+        collected_amount: string;
+      }>(
+        process.env.DATABASE_URL!,
+        `
+          SELECT
+            COUNT(*) FILTER (WHERE status IN ('PENDING', 'REQUESTED'))::text AS pending_payments,
+            COALESCE(SUM(amount) FILTER (WHERE status = 'PAID'), 0)::text AS collected_amount
+          FROM payments
+        `
+      )
+    ]);
+
+    return {
+      invoices: {
+        totalOutstanding: Number(invoiceStats.rows[0]?.total_outstanding ?? 0),
+        paidInvoices: Number(invoiceStats.rows[0]?.paid_invoices ?? 0),
+        overdueInvoices: Number(invoiceStats.rows[0]?.overdue_invoices ?? 0)
+      },
+      payments: {
+        pending: Number(paymentStats.rows[0]?.pending_payments ?? 0),
+        collectedAmount: Number(paymentStats.rows[0]?.collected_amount ?? 0)
+      }
+    };
+  });
+
   app.get("/customers/:id/billing", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
 
@@ -45,6 +88,108 @@ const routes: FastifyPluginAsync = async (app) => {
 
     const invoices = await zoho.listInvoices(customer.rows[0].zoho_customer_id);
     return invoices.invoices;
+  });
+
+  app.get("/customers/:id/ledger", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const customer = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id FROM customers WHERE id = $1`,
+      [params.id]
+    );
+
+    if (!customer.rows[0]) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const [invoiceStats, paymentStats] = await Promise.all([
+      query<{
+        total_invoiced: string;
+        outstanding: string;
+        overdue_count: string;
+      }>(
+        process.env.DATABASE_URL!,
+        `
+          SELECT
+            COALESCE(SUM((payload ->> 'total')::numeric), 0)::text AS total_invoiced,
+            COALESCE(SUM((payload ->> 'balance')::numeric), 0)::text AS outstanding,
+            COUNT(*) FILTER (WHERE status = 'overdue')::text AS overdue_count
+          FROM billing_invoices
+          WHERE customer_id = $1
+        `,
+        [params.id]
+      ),
+      query<{
+        collected: string;
+        pending_links: string;
+      }>(
+        process.env.DATABASE_URL!,
+        `
+          SELECT
+            COALESCE(SUM(amount) FILTER (WHERE status = 'PAID'), 0)::text AS collected,
+            COUNT(*) FILTER (WHERE status IN ('PENDING', 'REQUESTED'))::text AS pending_links
+          FROM payments
+          WHERE customer_id = $1
+        `,
+        [params.id]
+      )
+    ]);
+
+    return {
+      invoicedAmount: Number(invoiceStats.rows[0]?.total_invoiced ?? 0),
+      outstandingAmount: Number(invoiceStats.rows[0]?.outstanding ?? 0),
+      overdueInvoices: Number(invoiceStats.rows[0]?.overdue_count ?? 0),
+      collectedAmount: Number(paymentStats.rows[0]?.collected ?? 0),
+      pendingPaymentLinks: Number(paymentStats.rows[0]?.pending_links ?? 0)
+    };
+  });
+
+  app.get("/customers/:id/payments", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const result = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT *
+        FROM payments
+        WHERE customer_id = $1
+        ORDER BY created_at DESC
+      `,
+      [params.id]
+    );
+
+    return result.rows;
+  });
+
+  app.post("/customers/:id/payment-links", { preHandler: [requireAuth] }, async (request) => {
+    const params = request.params as { id: string };
+    const body = request.body as { amount: number; invoiceId?: string; description?: string };
+
+    const paymentLink = `https://payments.example.test/customer/${params.id}/${Date.now()}`;
+    const result = await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO payments (
+          customer_id,
+          invoice_id,
+          amount,
+          status,
+          payment_method,
+          payment_link,
+          payload
+        )
+        VALUES ($1, $2, $3, 'REQUESTED', 'ZOHO_PAYMENT_LINK', $4, $5::jsonb)
+        RETURNING *
+      `,
+      [
+        params.id,
+        body.invoiceId ?? null,
+        body.amount,
+        paymentLink,
+        JSON.stringify({ description: body.description ?? "Customer initiated payment link" })
+      ]
+    );
+
+    return result.rows[0];
   });
 
   app.post("/billing/invoices", { preHandler: [requireAuth] }, async (request, reply) => {

@@ -42,7 +42,11 @@ const routes: FastifyPluginAsync = async (app) => {
 
   function resolveUpstream(path: string) {
     if (path.startsWith("/api/v1/auth")) return process.env.AUTH_SERVICE_URL!;
-    if (/^\/api\/v1\/customers\/[^/]+\/billing/.test(path) || path.startsWith("/api/v1/billing")) {
+    if (
+      /^\/api\/v1\/customers\/[^/]+\/(billing|ledger|payments|payment-links)/.test(path) ||
+      path.startsWith("/api/v1/billing") ||
+      path.startsWith("/api/v1/finance")
+    ) {
       return process.env.BILLING_SERVICE_URL!;
     }
     if (path.startsWith("/api/v1/customers") || path.startsWith("/api/v1/sites")) {
@@ -50,7 +54,14 @@ const routes: FastifyPluginAsync = async (app) => {
     }
     if (path.startsWith("/api/v1/alerts")) return process.env.MONITORING_SERVICE_URL!;
     if (path.startsWith("/api/v1/tickets")) return process.env.TICKET_SERVICE_URL!;
-    if (path.startsWith("/api/v1/partners")) return process.env.PARTNER_SERVICE_URL!;
+    if (
+      path.startsWith("/api/v1/partners") ||
+      path.startsWith("/api/v1/leads") ||
+      path.startsWith("/api/v1/feasibility") ||
+      path.startsWith("/api/v1/sales")
+    ) {
+      return process.env.PARTNER_SERVICE_URL!;
+    }
     throw new Error("Route not mapped");
   }
 
