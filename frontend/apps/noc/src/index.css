@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --scrollbar-thumb: #252b3a;
+    --scrollbar-track: transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #252b3a; border-radius: 2px; }
+
+  html { font-size: 13px; }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-border rounded-lg;
+  }
+
+  .card-header {
+    @apply flex items-center justify-between px-4 py-3 border-b border-border;
+  }
+
+  .card-title {
+    @apply text-xs font-semibold uppercase tracking-widest text-muted;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-brand text-black text-xs font-semibold rounded-md hover:bg-brand/90 transition-colors;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-muted text-xs font-medium rounded-md hover:bg-surface-2 hover:text-white transition-colors;
+  }
+
+  .status-online {
+    @apply inline-flex items-center gap-1 text-status-online text-[10px] font-semibold bg-status-online/10 border border-status-online/25 px-2 py-0.5 rounded;
+  }
+
+  .status-offline {
+    @apply inline-flex items-center gap-1 text-status-offline text-[10px] font-semibold bg-status-offline/10 border border-status-offline/25 px-2 py-0.5 rounded;
+  }
+
+  .status-degraded {
+    @apply inline-flex items-center gap-1 text-status-degraded text-[10px] font-semibold bg-status-degraded/10 border border-status-degraded/25 px-2 py-0.5 rounded;
+  }
+
+  .input-field {
+    @apply bg-surface-2 border border-border text-white text-xs rounded-md px-3 py-2 outline-none focus:border-brand/60 focus:ring-1 focus:ring-brand/20 placeholder:text-muted transition-colors w-full;
+  }
+
+  .badge-critical {
+    @apply text-[10px] font-mono font-semibold bg-status-offline/15 text-status-offline border border-status-offline/30 px-1.5 py-0.5 rounded;
+  }
+
+  .badge-warn {
+    @apply text-[10px] font-mono font-semibold bg-status-degraded/15 text-status-degraded border border-status-degraded/30 px-1.5 py-0.5 rounded;
+  }
+
+  .badge-info {
+    @apply text-[10px] font-mono font-semibold bg-brand/10 text-brand border border-brand/25 px-1.5 py-0.5 rounded;
+  }
+
+  .table-row {
+    @apply border-b border-border hover:bg-surface-2 transition-colors cursor-pointer;
+  }
+
+  .table-th {
+    @apply px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-dim;
+  }
+
+  .table-td {
+    @apply px-4 py-3 text-xs;
+  }
+}

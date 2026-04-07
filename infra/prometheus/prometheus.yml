@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: netlayer-services
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - auth-service:4001
+          - site-service:4002
+          - monitoring-service:4003
+          - ticket-service:4004
+          - billing-service:4005
+          - partner-service:4006
+          - notification-service:4007
+          - websocket-service:4008
+          - api-gateway:8080

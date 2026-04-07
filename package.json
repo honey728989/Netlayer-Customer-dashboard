@@ -1,0 +1,32 @@
+{
+  "name": "netlayer-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc -b packages/platform services/api-gateway services/auth-service services/billing-service services/monitoring-service services/notification-service services/partner-service services/site-service services/ticket-service services/websocket-service",
+    "dev": "npm run dev --workspace @netlayer/api-gateway",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "node ./node_modules/typescript/bin/tsc -b packages/platform services/api-gateway services/auth-service services/billing-service services/monitoring-service services/notification-service services/partner-service services/site-service services/ticket-service services/websocket-service",
+    "start": "npm run start --workspace @netlayer/api-gateway"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^7.0.1",
+    "@types/pg": "^8.15.2",
+    "@types/ws": "^8.18.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "bullmq": "^5.56.1",
+    "prom-client": "^15.1.3"
+  }
+}

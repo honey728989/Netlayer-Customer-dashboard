@@ -1,0 +1,22 @@
+{
+  "name": "netlayer",
+  "private": true,
+  "packageManager": "npm@10.9.3",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:noc": "npm run dev --workspace @netlayer/noc",
+    "dev:portal": "npm run dev --workspace @netlayer/portal",
+    "dev:partner": "npm run dev --workspace @netlayer/partner",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

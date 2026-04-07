@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "fastify": [
+        "node_modules/fastify"
+      ],
+      "@netlayer/platform": [
+        "packages/platform/src"
+      ]
+    },
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  }
+}
