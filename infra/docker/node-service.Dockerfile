@@ -5,7 +5,8 @@ COPY package.json tsconfig.base.json ./
 COPY packages ./packages
 COPY services ./services
 RUN npm install
-RUN npm run build
+RUN find /app/packages /app/services -name "tsconfig.tsbuildinfo" -delete
+RUN npm run build -- --force
 
 FROM node:20-bookworm-slim AS runtime
 
