@@ -2,12 +2,25 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
-import { authApi } from '@netlayer/api'
+import { authApi, type AuthUser } from '@netlayer/api'
 
 const ROLE_REDIRECT: Record<string, string> = {
   admin: '/noc',
   customer: '/portal',
   partner: '/partner',
+}
+
+function normalizeUserRole(user: AuthUser) {
+  if (user.roles.includes('SUPER_ADMIN') || user.roles.includes('NOC_ENGINEER')) {
+    return 'admin' as const
+  }
+  if (user.roles.includes('ENTERPRISE_ADMIN') || user.roles.includes('ENTERPRISE_USER')) {
+    return 'customer' as const
+  }
+  if (user.roles.includes('PARTNER_ADMIN') || user.roles.includes('PARTNER_USER')) {
+    return 'partner' as const
+  }
+  return 'admin' as const
 }
 
 export function LoginPage() {
@@ -26,8 +39,12 @@ export function LoginPage() {
 
     try {
       const res = await authApi.login(email, password)
-      setAuth(res.user, res.accessToken, res.refreshToken)
-      navigate(ROLE_REDIRECT[res.user.role] ?? '/', { replace: true })
+      const normalizedUser = {
+        ...res.user,
+        role: normalizeUserRole(res.user),
+      }
+      setAuth(normalizedUser, res.accessToken, res.refreshToken)
+      navigate(ROLE_REDIRECT[normalizedUser.role] ?? '/', { replace: true })
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??

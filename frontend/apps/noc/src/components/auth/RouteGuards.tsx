@@ -29,7 +29,7 @@ export function RequireRole({ roles, redirectTo = '/login' }: RequireRoleProps) 
     return <Navigate to="/login" replace />
   }
 
-  if (!user || !roles.includes(user.role)) {
+  if (!user || !user.role || !roles.includes(user.role)) {
     return <Navigate to={redirectTo} replace />
   }
 
@@ -51,5 +51,5 @@ export function RoleRedirect() {
     partner: '/partner',
   }
 
-  return <Navigate to={roleMap[user!.role]} replace />
+  return <Navigate to={roleMap[user.role] ?? '/login'} replace />
 }

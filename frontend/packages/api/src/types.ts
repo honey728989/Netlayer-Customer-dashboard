@@ -7,17 +7,24 @@ export type AlertStatus = 'active' | 'acknowledged' | 'resolved'
 export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed'
 export type TicketPriority = 'critical' | 'high' | 'medium' | 'low'
 export type UserRole = 'admin' | 'customer' | 'partner'
+export type BackendRole =
+  | 'SUPER_ADMIN'
+  | 'NOC_ENGINEER'
+  | 'ENTERPRISE_ADMIN'
+  | 'ENTERPRISE_USER'
+  | 'PARTNER_ADMIN'
+  | 'PARTNER_USER'
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
-  id: string
-  name: string
+  userId: string
   email: string
+  roles: BackendRole[]
   role: UserRole
   avatarUrl?: string
-  organizationId: string
-  organizationName: string
+  organizationId?: string
+  organizationName?: string
 }
 
 export interface LoginCredentials {
