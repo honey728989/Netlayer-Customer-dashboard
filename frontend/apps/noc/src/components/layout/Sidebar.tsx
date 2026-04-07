@@ -12,10 +12,15 @@ import {
   Settings,
   ChevronLeft,
   Wifi,
+  CreditCard,
+  BriefcaseBusiness,
+  KanbanSquare,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import { useUIStore } from '@/store'
-import { useAlertStore } from '@/store'
+import { useUIStore, useAlertStore } from '@/store'
+import { useAuthStore } from '@netlayer/auth'
+import type { UserRole } from '@netlayer/api'
 
 interface NavItem {
   to: string
@@ -30,33 +35,73 @@ interface NavSection {
   items: NavItem[]
 }
 
-const NOC_NAV: NavSection[] = [
-  {
-    heading: 'Operations',
-    items: [
-      { to: '/noc', label: 'Dashboard', icon: LayoutDashboard, end: true },
-      { to: '/noc/sites', label: 'Sites', icon: Globe },
-      { to: '/noc/monitoring', label: 'Monitoring', icon: MonitorDot },
-      { to: '/noc/bandwidth', label: 'Bandwidth', icon: Wifi },
+const NAV_BY_ROLE: Record<UserRole, { title: string; sections: NavSection[] }> = {
+  admin: {
+    title: 'NOC Portal',
+    sections: [
+      {
+        heading: 'Operations',
+        items: [
+          { to: '/noc', label: 'Dashboard', icon: LayoutDashboard, end: true },
+          { to: '/noc/sites', label: 'Sites', icon: Globe },
+          { to: '/noc/monitoring', label: 'Monitoring', icon: MonitorDot },
+          { to: '/noc/bandwidth', label: 'Bandwidth', icon: Wifi },
+        ],
+      },
+      {
+        heading: 'Service',
+        items: [
+          { to: '/noc/alerts', label: 'Alerts', icon: Bell },
+          { to: '/noc/tickets', label: 'Tickets', icon: Ticket },
+          { to: '/noc/reports', label: 'Reports', icon: BarChart3 },
+        ],
+      },
+      {
+        heading: 'Management',
+        items: [
+          { to: '/noc/customers', label: 'Customers', icon: Users },
+          { to: '/noc/partners', label: 'Partners', icon: Handshake },
+          { to: '/noc/settings', label: 'Settings', icon: Settings },
+        ],
+      },
     ],
   },
-  {
-    heading: 'Service',
-    items: [
-      { to: '/noc/alerts', label: 'Alerts', icon: Bell },
-      { to: '/noc/tickets', label: 'Tickets', icon: Ticket },
-      { to: '/noc/reports', label: 'Reports', icon: BarChart3 },
+  customer: {
+    title: 'Customer Portal',
+    sections: [
+      {
+        heading: 'Overview',
+        items: [
+          { to: '/portal', label: 'Dashboard', icon: LayoutDashboard, end: true },
+          { to: '/portal/sites', label: 'Sites', icon: Globe },
+          { to: '/portal/tickets', label: 'Tickets', icon: Ticket },
+          { to: '/portal/billing', label: 'Billing', icon: CreditCard },
+          { to: '/portal/reports/sla', label: 'Reports', icon: BarChart3 },
+        ],
+      },
     ],
   },
-  {
-    heading: 'Management',
-    items: [
-      { to: '/noc/customers', label: 'Customers', icon: Users },
-      { to: '/noc/partners', label: 'Partners', icon: Handshake },
-      { to: '/noc/settings', label: 'Settings', icon: Settings },
+  partner: {
+    title: 'Partner Portal',
+    sections: [
+      {
+        heading: 'Overview',
+        items: [
+          { to: '/partner', label: 'Dashboard', icon: LayoutDashboard, end: true },
+          { to: '/partner/pipeline', label: 'Pipeline', icon: KanbanSquare },
+          { to: '/partner/clients', label: 'Clients', icon: Users },
+          { to: '/partner/commissions', label: 'Commissions', icon: Wallet },
+        ],
+      },
+      {
+        heading: 'Execution',
+        items: [
+          { to: '/partner/onboarding', label: 'Onboarding', icon: BriefcaseBusiness },
+        ],
+      },
     ],
   },
-]
+}
 
 function NavItemRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const { criticalCount } = useAlertStore()
@@ -66,21 +111,33 @@ function NavItemRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) 
     <NavLink
       to={item.to}
       end={item.end}
+      title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         clsx(
-          'group flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium transition-all',
-          isActive
-            ? 'border-l-2 border-brand bg-brand/5 text-brand'
-            : 'border-l-2 border-transparent text-muted hover:bg-surface-2 hover:text-white',
+          'group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium transition-all outline-none',
+          'focus-visible:ring-2 focus-visible:ring-brand/50',
+          isActive ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-surface-2 hover:text-white',
+          collapsed && 'justify-center px-2',
         )
       }
     >
-      <item.icon size={15} className="shrink-0" />
-      {!collapsed && (
+      {({ isActive }) => (
         <>
-          <span className="flex-1 truncate">{item.label}</span>
-          {badge ? (
-            <span className="badge-critical ml-auto">{badge}</span>
+          {isActive && (
+            <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand" />
+          )}
+          <item.icon
+            size={15}
+            className={clsx('shrink-0 transition-colors', isActive && 'text-brand')}
+          />
+          {!collapsed && (
+            <>
+              <span className="flex-1 truncate">{item.label}</span>
+              {badge ? <span className="badge-critical ml-auto shrink-0">{badge}</span> : null}
+            </>
+          )}
+          {collapsed && badge ? (
+            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-status-offline" />
           ) : null}
         </>
       )}
@@ -90,6 +147,9 @@ function NavItemRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) 
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
+  const { user } = useAuthStore()
+  const role = user?.role ?? 'admin'
+  const navConfig = NAV_BY_ROLE[role]
 
   return (
     <aside
@@ -98,26 +158,43 @@ export function Sidebar() {
         sidebarCollapsed ? 'w-14' : 'w-52',
       )}
     >
-      {/* Collapse toggle */}
       <button
         onClick={toggleSidebar}
         className={clsx(
-          'absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-2 text-muted transition-all hover:text-white',
+          'absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center',
+          'rounded-full border border-border bg-surface-2 text-muted shadow-card',
+          'transition-all hover:border-border-2 hover:text-white',
           sidebarCollapsed && 'rotate-180',
         )}
-        aria-label="Toggle sidebar"
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         <ChevronLeft size={12} />
       </button>
 
-      <nav className="flex-1 overflow-y-auto p-2 pt-3">
-        {NOC_NAV.map((section) => (
-          <div key={section.heading} className="mb-4">
-            {!sidebarCollapsed && (
-              <p className="mb-1 px-3 text-[9px] font-semibold uppercase tracking-widest text-dim">
-                {section.heading}
-              </p>
-            )}
+      <div
+        className={clsx(
+          'flex h-12 shrink-0 items-center border-b border-border',
+          sidebarCollapsed ? 'justify-center px-2' : 'gap-2 px-4',
+        )}
+      >
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand">
+          <span className="font-mono text-[9px] font-bold text-black">NL</span>
+        </div>
+        {!sidebarCollapsed && (
+          <div className="min-w-0">
+            <p className="font-display text-sm font-bold leading-none text-white">Netlayer</p>
+            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-dim">
+              {navConfig.title}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <nav className="flex-1 overflow-y-auto p-2 pt-3" aria-label="Main navigation">
+        {navConfig.sections.map((section) => (
+          <div key={section.heading} className="mb-5">
+            {!sidebarCollapsed && <p className="section-label">{section.heading}</p>}
+            {sidebarCollapsed && <div className="mx-auto mb-2 h-px w-6 bg-border" />}
             <div className="space-y-0.5">
               {section.items.map((item) => (
                 <NavItemRow key={item.to} item={item} collapsed={sidebarCollapsed} />

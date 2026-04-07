@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react'
 import type { WsEvent } from '@netlayer/api'
 import { useAlertStore, useBandwidthStore, useSiteStatusStore } from '@/store'
 
+type WsStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
+
 const WS_BASE = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}`
 const RECONNECT_DELAY_MS = 3_000
 const MAX_RECONNECT_ATTEMPTS = 10
@@ -11,7 +13,7 @@ function buildWsUrl(path: string): string {
   return `${WS_BASE}${path}?token=${token ?? ''}`
 }
 
-function useWebSocket(path: string, onMessage: (event: WsEvent) => void) {
+function useWebSocket(path: string, onMessage: (event: WsEvent) => void, enabled = true) {
   const wsRef = useRef<WebSocket | null>(null)
   const attemptsRef = useRef(0)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -50,6 +52,10 @@ function useWebSocket(path: string, onMessage: (event: WsEvent) => void) {
   }, [path, onMessage])
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     mountedRef.current = true
     connect()
 
@@ -58,10 +64,10 @@ function useWebSocket(path: string, onMessage: (event: WsEvent) => void) {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
       wsRef.current?.close()
     }
-  }, [connect])
+  }, [connect, enabled])
 }
 
-export function useNocWebSockets() {
+export function useNocWebSockets(enabled = true) {
   const { pushAlert, updateAlert, removeAlert } = useAlertStore()
   const { pushPoint } = useBandwidthStore()
   const { applyStatusChange } = useSiteStatusStore()
@@ -97,7 +103,7 @@ export function useNocWebSockets() {
     [applyStatusChange],
   )
 
-  useWebSocket('/ws/alerts', handleAlerts)
-  useWebSocket('/ws/bandwidth', handleBandwidth)
-  useWebSocket('/ws/sites/status', handleSiteStatus)
+  useWebSocket('/ws/alerts', handleAlerts, enabled)
+  useWebSocket('/ws/bandwidth', handleBandwidth, enabled)
+  useWebSocket('/ws/sites/status', handleSiteStatus, enabled)
 }

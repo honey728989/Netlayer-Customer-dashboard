@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AuthUser } from '@netlayer/api'
+import { normalizeAuthUser, type AuthUser } from '@netlayer/api'
 
 interface AuthState {
   user: AuthUser | null
@@ -21,9 +21,10 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setAuth: (user, accessToken, refreshToken) => {
+        const normalizedUser = normalizeAuthUser(user as unknown as Record<string, unknown>)
         localStorage.setItem('nl_access_token', accessToken)
         localStorage.setItem('nl_refresh_token', refreshToken)
-        set({ user, accessToken, refreshToken, isAuthenticated: true })
+        set({ user: normalizedUser, accessToken, refreshToken, isAuthenticated: true })
       },
 
       clearAuth: () => {
@@ -34,7 +35,9 @@ export const useAuthStore = create<AuthState>()(
 
       updateUser: (partial) =>
         set((state) => ({
-          user: state.user ? { ...state.user, ...partial } : null,
+          user: state.user
+            ? normalizeAuthUser({ ...state.user, ...partial } as Record<string, unknown>)
+            : null,
         })),
     }),
     {

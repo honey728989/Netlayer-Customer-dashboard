@@ -6,7 +6,79 @@ import type {
   Commission,
   PaginatedResponse,
   QueryParams,
+  AuthResponse,
+  AuthUser,
+  BackendRole,
+  UserRole,
 } from './types'
+
+function normalizeRole(user: Partial<AuthUser> & { roles?: BackendRole[] }): UserRole {
+  if (user.role && ['admin', 'customer', 'partner'].includes(user.role)) {
+    return user.role as UserRole
+  }
+
+  if (user.roles?.some((role) => role === 'SUPER_ADMIN' || role === 'NOC_ENGINEER')) {
+    return 'admin'
+  }
+
+  if (user.roles?.some((role) => role === 'PARTNER_ADMIN' || role === 'PARTNER_USER')) {
+    return 'partner'
+  }
+
+  return 'customer'
+}
+
+export function normalizeAuthUser(user: Record<string, unknown>): AuthUser {
+  const roles = Array.isArray(user.roles) ? (user.roles as BackendRole[]) : []
+  const fullName =
+    (typeof user.fullName === 'string' && user.fullName) ||
+    (typeof user.name === 'string' && user.name) ||
+    ''
+  const email = typeof user.email === 'string' ? user.email : ''
+
+  return {
+    id:
+      (typeof user.id === 'string' && user.id) ||
+      (typeof user.userId === 'string' && user.userId) ||
+      email,
+    userId:
+      (typeof user.userId === 'string' && user.userId) ||
+      (typeof user.id === 'string' ? user.id : undefined),
+    name: fullName || email || 'User',
+    fullName: fullName || undefined,
+    email,
+    role: normalizeRole({
+      role: typeof user.role === 'string' ? (user.role as UserRole) : undefined,
+      roles,
+    }),
+    roles,
+    avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : undefined,
+    organizationId:
+      (typeof user.organizationId === 'string' && user.organizationId) ||
+      (typeof user.customerId === 'string' && user.customerId) ||
+      (typeof user.partnerId === 'string' && user.partnerId) ||
+      undefined,
+    organizationName:
+      (typeof user.organizationName === 'string' && user.organizationName) || undefined,
+    customerId: typeof user.customerId === 'string' ? user.customerId : undefined,
+    partnerId: typeof user.partnerId === 'string' ? user.partnerId : undefined,
+    accountScope:
+      user.accountScope === 'platform' ||
+      user.accountScope === 'customer' ||
+      user.accountScope === 'partner' ||
+      user.accountScope === 'internal'
+        ? user.accountScope
+        : undefined,
+  }
+}
+
+function normalizeAuthResponse(data: Record<string, unknown>): AuthResponse {
+  return {
+    accessToken: String(data.accessToken ?? ''),
+    refreshToken: String(data.refreshToken ?? ''),
+    user: normalizeAuthUser((data.user as Record<string, unknown>) ?? {}),
+  }
+}
 
 export const customersApi = {
   list: (params?: QueryParams) =>
@@ -58,11 +130,11 @@ export const partnersApi = {
 
 export const authApi = {
   login: (email: string, password: string) =>
-    http.post('/auth/login', { email, password }).then((r) => r.data),
+    http.post('/auth/login', { email, password }).then((r) => normalizeAuthResponse(r.data)),
 
   logout: () =>
     http.post('/auth/logout').then((r) => r.data),
 
   me: () =>
-    http.get('/auth/me').then((r) => r.data),
+    http.get('/auth/me').then((r) => normalizeAuthUser(r.data)),
 }

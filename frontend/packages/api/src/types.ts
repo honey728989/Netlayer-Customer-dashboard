@@ -14,18 +14,26 @@ export type BackendRole =
   | 'ENTERPRISE_USER'
   | 'PARTNER_ADMIN'
   | 'PARTNER_USER'
+  | 'SALES_EXECUTIVE'
+  | 'FINANCE_USER'
+  | 'FIELD_ENGINEER'
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
-  userId: string
+  id: string
+  userId?: string
+  name: string
+  fullName?: string
   email: string
-  name?: string
-  roles: BackendRole[]
   role: UserRole
+  roles?: BackendRole[]
   avatarUrl?: string
   organizationId?: string
   organizationName?: string
+  customerId?: string
+  partnerId?: string
+  accountScope?: 'platform' | 'customer' | 'partner' | 'internal'
 }
 
 export interface LoginCredentials {
