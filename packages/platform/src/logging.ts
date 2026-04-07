@@ -34,8 +34,26 @@ export async function pushLokiLog(
 }
 
 export function buildLokiLine(payload: Record<string, unknown>) {
-  return JSON.stringify({
-    timestamp: new Date().toISOString(),
-    ...payload
-  });
+  const seen = new WeakSet<object>();
+
+  return JSON.stringify(
+    {
+      timestamp: new Date().toISOString(),
+      ...payload
+    },
+    (_key, value) => {
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) {
+          return "[Circular]";
+        }
+        seen.add(value);
+      }
+
+      return value;
+    }
+  );
 }
