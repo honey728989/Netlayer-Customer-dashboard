@@ -1,157 +1,207 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Ticket as TicketIcon } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
-import { useTickets } from '@/hooks/useQueries'
-import { DataTable, SearchInput, SlaTimerBadge, TicketPriorityBadge, type Column } from '@netlayer/ui'
-import { NewTicketModal } from '@/components/tickets/NewTicketModal'
-import type { Ticket, TicketStatus } from '@netlayer/api'
+import { ticketsApi } from '@netlayer/api'
+import type { Ticket } from '@netlayer/api'
 
-const STATUS_STYLE: Record<TicketStatus, string> = {
-  open: 'bg-brand/10 text-brand border border-brand/25',
-  in_progress: 'bg-status-info/10 text-status-info border border-status-info/25',
-  pending: 'bg-status-degraded/10 text-status-degraded border border-status-degraded/25',
-  resolved: 'bg-status-online/10 text-status-online border border-status-online/25',
-  closed: 'bg-surface-2 text-muted border border-border',
+const STATUS_COLOR: Record<string, string> = {
+  OPEN:        'var(--brand)',
+  IN_PROGRESS: 'var(--status-info)',
+  PENDING:     'var(--status-degraded)',
+  RESOLVED:    'var(--status-online)',
+  CLOSED:      'var(--text-dim)',
 }
 
-const STATUS_OPTIONS: Array<{ label: string; value: TicketStatus | '' }> = [
-  { label: 'All', value: '' },
-  { label: 'Open', value: 'open' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Resolved', value: 'resolved' },
-]
+function priorityColor(p: string) {
+  const u = p?.toUpperCase()
+  if (u === 'P1' || u === 'CRITICAL') return 'var(--status-offline)'
+  if (u === 'P2' || u === 'HIGH')     return 'var(--status-degraded)'
+  if (u === 'P3' || u === 'MEDIUM')   return 'var(--status-info)'
+  return 'var(--text-muted)'
+}
 
-const COLUMNS: Column<Ticket>[] = [
-  {
-    key: 'id',
-    header: 'ID',
-    width: '80px',
-    render: (t) => <span className="font-mono text-[11px] text-muted">#{t.id.slice(-5)}</span>,
-  },
-  {
-    key: 'subject',
-    header: 'Subject',
-    render: (t) => (
-      <div>
-        <p className="font-medium text-white">{t.subject}</p>
-        {t.siteName && <p className="text-[10px] text-muted">{t.siteName}</p>}
-      </div>
-    ),
-  },
-  {
-    key: 'priority',
-    header: 'Priority',
-    width: '90px',
-    render: (t) => <TicketPriorityBadge priority={t.priority} />,
-  },
-  {
-    key: 'status',
-    header: 'Status',
-    width: '110px',
-    render: (t) => (
-      <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold capitalize ${STATUS_STYLE[t.status]}`}>
-        {t.status.replace('_', ' ')}
-      </span>
-    ),
-  },
-  {
-    key: 'sla',
-    header: 'SLA',
-    width: '130px',
-    render: (t) => <SlaTimerBadge deadline={t.slaDeadline} breached={t.slaBreached} />,
-  },
-  {
-    key: 'updated',
-    header: 'Last Updated',
-    width: '130px',
-    render: (t) => (
-      <span className="font-mono text-[10px] text-muted">
-        {formatDistanceToNow(new Date(t.updatedAt), { addSuffix: true })}
-      </span>
-    ),
-  },
+function TicketStatusBadge({ status }: { status: string }) {
+  const color = STATUS_COLOR[status?.toUpperCase()] ?? 'var(--text-muted)'
+  return (
+    <span className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+          style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}>
+      {(status ?? '').replace('_', ' ')}
+    </span>
+  )
+}
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const color = priorityColor(priority)
+  return (
+    <span className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+          style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}>
+      {priority?.toUpperCase()}
+    </span>
+  )
+}
+
+const STATUS_TABS = [
+  { label: 'All', value: '' },
+  { label: 'Open', value: 'OPEN' },
+  { label: 'In Progress', value: 'IN_PROGRESS' },
+  { label: 'Resolved', value: 'RESOLVED' },
 ]
 
 export function CustomerTickets() {
   const { user } = useAuthStore()
+  const customerId = user?.customerId ?? user?.organizationId ?? ''
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('open')
-  const [page, setPage] = useState(1)
-  const [showModal, setShowModal] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
 
-  const { data, isLoading } = useTickets({
-    customerId: user?.organizationId,
-    search: search || undefined,
-    status: statusFilter || undefined,
-    page,
-    pageSize: 20,
+  const { data: ticketsData, isLoading } = useQuery({
+    queryKey: ['tickets', 'list', customerId, statusFilter],
+    queryFn: () => ticketsApi.list({
+      customerId,
+      status: statusFilter || undefined,
+      pageSize: 100,
+    }),
+    enabled: Boolean(customerId),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   })
 
+  const tickets = (ticketsData?.data ?? []) as Ticket[]
+  const filtered = tickets.filter(t =>
+    !search ||
+    (t.title ?? t.subject ?? '').toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
-    <div className="space-y-4 p-5">
+    <div className="space-y-5 p-5 animate-fade-in">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-lg font-semibold text-white">Support Tickets</h1>
-          <p className="text-xs text-muted">{data?.total ?? 0} tickets</p>
+          <h1 className="font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Support Tickets</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {ticketsData?.total ?? 0} ticket{(ticketsData?.total ?? 0) !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary">
-          <Plus size={13} />
-          Raise Ticket
-        </button>
+        <a href="/portal/tickets/new" className="btn-primary gap-1.5">
+          <Plus size={13} /> Raise Ticket
+        </a>
       </div>
 
+      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={(v) => { setSearch(v); setPage(1) }}
-          placeholder="Search tickets…"
-          className="w-64"
-        />
-        <div className="flex items-center gap-1 rounded-md border border-border bg-surface p-1">
-          {STATUS_OPTIONS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => { setStatusFilter(f.value); setPage(1) }}
-              className={statusFilter === f.value
-                ? 'rounded px-2.5 py-1 text-[11px] font-semibold bg-brand/15 text-brand'
-                : 'rounded px-2.5 py-1 text-[11px] text-muted hover:text-white transition-colors'
-              }
-            >
-              {f.label}
+        <div className="relative">
+          <input className="input-field pl-3 w-56" placeholder="Search tickets…"
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div className="filter-tab-group">
+          {STATUS_TABS.map(tab => (
+            <button key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={statusFilter === tab.value ? 'filter-tab-active' : 'filter-tab'}>
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Table */}
       <div className="card overflow-hidden">
-        <DataTable
-          columns={COLUMNS}
-          data={data?.data ?? []}
-          keyExtractor={(t) => t.id}
-          loading={isLoading}
-          emptyTitle="No tickets found"
-          emptyDescription="All issues resolved! Raise a ticket if you need help."
-          stickyHeader
-        />
-      </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface-2)' }}>
+              <tr>
+                <th className="table-th w-16">ID</th>
+                <th className="table-th">Subject</th>
+                <th className="table-th w-24">Priority</th>
+                <th className="table-th w-28">Status</th>
+                <th className="table-th w-32">SLA Due</th>
+                <th className="table-th w-28">Opened</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="table-row">
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="table-td"><div className="skeleton h-4 rounded w-full max-w-[100px]" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center" style={{ color: 'var(--text-muted)' }}>
+                    <TicketIcon size={24} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">
+                      {statusFilter ? 'No tickets with this status' : 'No open tickets — great job!'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((t: Ticket) => {
+                  const slaDate = t.resolution_due_at ?? t.resolutionDueAt
+                  const slaMs = slaDate ? new Date(slaDate).getTime() - Date.now() : null
+                  const slaBreached = slaMs !== null && slaMs <= 0
+                  const slaHours = slaMs !== null ? Math.floor(slaMs / 3_600_000) : null
 
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-muted">
-          <span>Page {page} of {data.totalPages}</span>
-          <div className="flex gap-1">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="btn-ghost disabled:opacity-40">← Prev</button>
-            <button disabled={page >= data.totalPages} onClick={() => setPage(p => p + 1)} className="btn-ghost disabled:opacity-40">Next →</button>
-          </div>
+                  return (
+                    <tr key={t.id} className="table-row">
+                      <td className="table-td">
+                        <span className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                          #{t.id.slice(-5)}
+                        </span>
+                      </td>
+                      <td className="table-td">
+                        <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>
+                          {t.title ?? t.subject}
+                        </p>
+                        {(t.site_name ?? t.siteName) && (
+                          <p className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                            {t.site_name ?? t.siteName}
+                          </p>
+                        )}
+                      </td>
+                      <td className="table-td">
+                        <PriorityBadge priority={t.priority} />
+                      </td>
+                      <td className="table-td">
+                        <TicketStatusBadge status={t.status} />
+                      </td>
+                      <td className="table-td">
+                        {!slaDate ? (
+                          <span className="text-[10px]" style={{ color: 'var(--text-dim)' }}>—</span>
+                        ) : slaBreached ? (
+                          <span className="font-mono text-[10px]" style={{ color: 'var(--status-offline)' }}>⚠ Breached</span>
+                        ) : (slaHours ?? 0) < 2 ? (
+                          <span className="font-mono text-[10px]" style={{ color: 'var(--status-degraded)' }}>
+                            {slaHours}h left
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            {formatDistanceToNow(new Date(slaDate), { addSuffix: true })}
+                          </span>
+                        )}
+                      </td>
+                      <td className="table-td font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        {formatDistanceToNow(
+                          new Date(t.created_at ?? t.createdAt ?? Date.now()),
+                          { addSuffix: true }
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
-
-      {showModal && (
-        <NewTicketModal
-          onClose={() => setShowModal(false)}
-          defaultCustomerId={user?.organizationId}
-        />
-      )}
+        {!isLoading && filtered.length > 0 && (
+          <div className="px-4 py-2 text-[11px]" style={{ color: 'var(--text-dim)', borderTop: '1px solid var(--border)' }}>
+            {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

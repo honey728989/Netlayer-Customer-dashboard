@@ -13,15 +13,36 @@ interface UIState {
   setTheme: (theme: 'dark' | 'light') => void
 }
 
+// Persist theme to localStorage
+const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('nl_theme') as 'dark' | 'light') || 'dark'
+
+function applyTheme(theme: 'dark' | 'light') {
+  if (typeof document !== 'undefined') {
+    const root = document.documentElement
+    if (theme === 'light') {
+      root.classList.add('light')
+    } else {
+      root.classList.remove('light')
+    }
+  }
+}
+
+// Apply on init
+applyTheme(savedTheme)
+
 export const useUIStore = create<UIState>((set) => ({
   sidebarCollapsed: false,
   activeDrawerId: null,
-  theme: 'dark',
+  theme: savedTheme,
 
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   openDrawer: (id) => set({ activeDrawerId: id }),
   closeDrawer: () => set({ activeDrawerId: null }),
-  setTheme: (theme) => set({ theme }),
+  setTheme: (theme) => {
+    applyTheme(theme)
+    localStorage.setItem('nl_theme', theme)
+    set({ theme })
+  },
 }))
 
 // ─── Alert Store (WebSocket-fed) ──────────────────────────────────────────────

@@ -1,1 +1,1 @@
-export * from '../../noc/src/hooks/useQueries'
+export * from '../../../noc/src/hooks/useQueries'

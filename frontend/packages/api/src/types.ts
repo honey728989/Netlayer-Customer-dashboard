@@ -1,11 +1,11 @@
 // ─── Core Domain Types ────────────────────────────────────────────────────────
 
-export type SiteStatus = 'online' | 'offline' | 'degraded' | 'maintenance'
-export type SiteType = 'ILL' | 'Business Broadband'
+export type SiteStatus = 'online' | 'offline' | 'degraded' | 'maintenance' | 'UP' | 'DOWN' | 'DEGRADED' | 'MAINTENANCE'
+export type SiteType = 'ILL' | 'Business Broadband' | 'BB' | 'MPLS' | 'SIP' | 'MANAGED'
 export type AlertPriority = 'P1' | 'P2' | 'P3' | 'P4'
-export type AlertStatus = 'active' | 'acknowledged' | 'resolved'
-export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed'
-export type TicketPriority = 'critical' | 'high' | 'medium' | 'low'
+export type AlertStatus = 'active' | 'acknowledged' | 'resolved' | 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed' | 'OPEN' | 'IN_PROGRESS' | 'PENDING' | 'RESOLVED' | 'CLOSED'
+export type TicketPriority = 'critical' | 'high' | 'medium' | 'low' | 'P1' | 'P2' | 'P3' | 'P4'
 export type UserRole = 'admin' | 'customer' | 'partner'
 export type BackendRole =
   | 'SUPER_ADMIN'
@@ -52,38 +52,58 @@ export interface AuthResponse {
 export interface Site {
   id: string
   name: string
-  type: SiteType
-  status: SiteStatus
-  customerId: string
-  customerName: string
-  city: string
-  state: string
-  address: string
-  bandwidthMbps: number
-  bandwidthUsedPercent: number
-  latencyMs: number
-  packetLossPercent: number
-  uplinkIp: string
-  deviceCount: number
-  lastSeenAt: string
-  contractExpiry: string
-  slaPercent: number
+  code?: string
+  type?: SiteType
+  status: string
+  customer_id?: string
+  customerId?: string
+  customer_name?: string
+  customerName?: string
+  city?: string
+  state?: string
+  address?: string
+  ip_block?: string
+  pop?: string
+  last_mile_provider?: string
+  bandwidth_mbps?: number
+  bandwidthMbps?: number
+  total_bandwidth_mbps?: string
+  bandwidthUsedPercent?: number
+  latencyMs?: number
+  packetLossPercent?: number
+  device_count?: string | number
+  deviceCount?: number
+  service_count?: string | number
+  go_live_date?: string
+  contract_end_date?: string
+  contractExpiry?: string
+  slaPercent?: number
+  created_at?: string
+  dashboard_uid?: string
 }
 
 export interface SiteTraffic {
-  timestamp: string
-  inboundMbps: number
-  outboundMbps: number
+  timestamp?: string
+  metric_time?: string
+  inboundMbps?: number
+  outboundMbps?: number
+  inbound_bps?: number
+  outbound_bps?: number
+  latency_ms?: number
+  packet_loss_pct?: number
 }
 
 export interface SiteDevice {
   id: string
-  name: string
-  type: 'router' | 'switch' | 'firewall' | 'cpe'
-  status: 'up' | 'down' | 'rebooting'
-  ip: string
-  model: string
-  uptime: string
+  hostname?: string
+  name?: string
+  type?: 'router' | 'switch' | 'firewall' | 'cpe'
+  status: string
+  ip_address?: string
+  ip?: string
+  vendor?: string
+  model?: string
+  uptime?: string
 }
 
 export interface SiteEvent {
@@ -98,52 +118,83 @@ export interface SiteEvent {
 
 export interface Alert {
   id: string
-  siteId: string
-  siteName: string
+  site_id?: string
+  siteId?: string
+  site_name?: string
+  siteName?: string
+  device_hostname?: string
+  severity?: string
   priority: AlertPriority
-  status: AlertStatus
-  type: string
+  status: string
+  type?: string
   message: string
-  source: 'zabbix' | 'internal' | 'manual'
-  triggeredAt: string
+  source: string
+  created_at?: string
+  triggeredAt?: string
+  acknowledged_at?: string
   acknowledgedAt?: string
+  acknowledged_by?: string
   acknowledgedBy?: string
+  resolved_at?: string
   resolvedAt?: string
+  ticket_id?: string
   ticketId?: string
-  metadata?: Record<string, string>
+  external_id?: string
+  metadata?: Record<string, unknown>
 }
 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 
 export interface Ticket {
   id: string
-  subject: string
+  title?: string
+  subject?: string
   description: string
-  status: TicketStatus
-  priority: TicketPriority
-  customerId: string
-  customerName: string
+  status: string
+  priority: string
+  customer_id?: string
+  customerId?: string
+  customer_name?: string
+  customerName?: string
+  site_id?: string
   siteId?: string
+  site_name?: string
   siteName?: string
+  assignee_id?: string
   assigneeId?: string
+  assignee_name?: string
   assigneeName?: string
-  slaDeadline: string
-  slaBreached: boolean
-  createdAt: string
-  updatedAt: string
+  response_due_at?: string
+  responseDueAt?: string
+  resolution_due_at?: string
+  resolutionDueAt?: string
+  slaDeadline?: string
+  slaBreached?: boolean
+  created_at?: string
+  createdAt?: string
+  updated_at?: string
+  updatedAt?: string
+  resolved_at?: string
   resolvedAt?: string
+  alert_id?: string
   alertId?: string
-  comments: TicketComment[]
+  source?: string
+  resolution_summary?: string
+  comments?: TicketComment[]
 }
 
 export interface TicketComment {
   id: string
-  authorId: string
-  authorName: string
-  authorRole: string
+  author_id?: string
+  authorId?: string
+  author_name?: string
+  authorName?: string
+  authorRole?: string
   body: string
-  createdAt: string
-  isInternal: boolean
+  created_at?: string
+  createdAt?: string
+  is_internal?: boolean
+  isInternal?: boolean
 }
 
 // ─── Customers ────────────────────────────────────────────────────────────────
@@ -151,19 +202,31 @@ export interface TicketComment {
 export interface Customer {
   id: string
   name: string
-  gstin: string
-  email: string
-  phone: string
-  accountManagerId: string
-  accountManagerName: string
+  code?: string
+  gstin?: string
+  email?: string
+  phone?: string
+  tier?: string
+  industry?: string
+  status: string
+  account_manager?: string
+  accountManagerId?: string
+  accountManagerName?: string
+  partner_id?: string
   partnerId?: string
+  partner_name?: string
   partnerName?: string
-  siteCount: number
-  activeTickets: number
-  monthlyArv: number
-  contractValue: number
-  status: 'active' | 'suspended' | 'churned'
-  createdAt: string
+  site_count?: string | number
+  siteCount?: number
+  activeTickets?: number
+  monthly_recurring_revenue?: number | string
+  monthlyArv?: number
+  annual_contract_value?: number | string
+  contractValue?: number
+  sla_profile?: string
+  contract_end_date?: string
+  created_at?: string
+  createdAt?: string
 }
 
 // ─── Partners ─────────────────────────────────────────────────────────────────
@@ -171,42 +234,124 @@ export interface Customer {
 export interface Partner {
   id: string
   name: string
-  email: string
-  phone: string
-  city: string
-  tier: 'silver' | 'gold' | 'platinum'
-  clientCount: number
-  monthlyRevenue: number
-  pendingCommission: number
-  paidCommission: number
-  activeLeads: number
-  createdAt: string
+  code?: string
+  email?: string
+  phone?: string
+  region?: string
+  city?: string
+  tier?: string
+  status?: string
+  commission_plan?: string
+  customer_count?: string | number
+  clientCount?: number
+  monthly_revenue?: number | string
+  monthlyRevenue?: number
+  pendingCommission?: number
+  paidCommission?: number
+  activeLeads?: number
+  created_at?: string
+  createdAt?: string
 }
 
 export interface Lead {
   id: string
-  companyName: string
-  contactName: string
-  contactEmail: string
-  contactPhone: string
-  serviceType: SiteType
-  bandwidthRequiredMbps: number
-  stage: 'new' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost'
-  estimatedValue: number
-  partnerId: string
-  createdAt: string
-  updatedAt: string
+  company_name?: string
+  companyName?: string
+  contact_name?: string
+  contactName?: string
+  contact_email?: string
+  contactEmail?: string
+  contact_phone?: string
+  contactPhone?: string
+  city?: string
+  state?: string
+  source?: string
+  stage: string
+  service_type?: string
+  serviceType?: SiteType
+  bandwidth_mbps?: number
+  bandwidth_required_mbps?: number
+  bandwidthRequiredMbps?: number
+  expected_value?: number | string
+  expected_mrc?: number | string
+  estimatedValue?: number
+  partner_id?: string
+  partnerId?: string
+  partner_name?: string
+  assigned_to?: string
+  owner_user_id?: string
+  created_at?: string
+  createdAt?: string
+  updated_at?: string
+  updatedAt?: string
+  lost_reason?: string
+  notes?: string
 }
 
 export interface Commission {
   id: string
-  partnerId: string
-  month: string
-  totalRevenue: number
-  commissionRate: number
-  commissionAmount: number
-  status: 'pending' | 'approved' | 'paid'
+  partner_id?: string
+  partnerId?: string
+  commission_period?: string
+  month?: string
+  gross_revenue?: number
+  totalRevenue?: number
+  commission_rate?: number
+  commissionRate?: number
+  commission_amount?: number
+  commissionAmount?: number
+  status: string
+  paid_at?: string
   paidAt?: string
+  created_at?: string
+}
+
+// ─── Services / Circuits ─────────────────────────────────────────────────────
+
+export interface Service {
+  id: string
+  customer_id?: string
+  site_id?: string
+  service_id?: string
+  circuit_id?: string
+  service_type?: string
+  bandwidth_mbps?: number
+  pop?: string
+  last_mile?: string
+  ip_block?: string
+  status?: string
+  activation_date?: string
+  contract_end_date?: string
+  monthly_charge?: number
+  site_name?: string
+  city?: string
+  state?: string
+}
+
+// ─── Feasibility ─────────────────────────────────────────────────────────────
+
+export interface FeasibilityRequest {
+  id: string
+  request_code?: string
+  customer_id?: string
+  customer_name?: string
+  source?: string
+  company_name?: string
+  contact_name?: string
+  contact_email?: string
+  address?: string
+  city?: string
+  state?: string
+  service_type?: string
+  bandwidth_mbps?: number
+  redundancy_required?: boolean
+  status: string
+  survey_date?: string
+  result_notes?: string
+  estimated_mrc?: number
+  notes?: string
+  created_at?: string
+  comments?: Array<{ id: string; body: string; author_name?: string; is_internal?: boolean; created_at?: string }>
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -214,9 +359,9 @@ export interface Commission {
 export interface PaginatedResponse<T> {
   data: T[]
   total: number
-  page: number
-  pageSize: number
-  totalPages: number
+  page?: number
+  pageSize?: number
+  totalPages?: number
 }
 
 export interface QueryParams {
@@ -225,13 +370,17 @@ export interface QueryParams {
   search?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  status?: string
+  priority?: string
+  customerId?: string
+  partnerId?: string
   [key: string]: string | number | boolean | undefined
 }
 
 // ─── WebSocket Events ─────────────────────────────────────────────────────────
 
 export interface WsAlertEvent {
-  type: 'alert:new' | 'alert:updated' | 'alert:resolved'
+  type: 'alert:new' | 'alert:updated' | 'alert:resolved' | 'alert.new' | 'alert.acknowledged'
   payload: Alert
 }
 
@@ -258,7 +407,7 @@ export interface WsSiteStatusEvent {
 
 export type WsEvent = WsAlertEvent | WsBandwidthEvent | WsSiteStatusEvent
 
-// ─── API Response ─────────────────────────────────────────────────────────────
+// ─── API Error ────────────────────────────────────────────────────────────────
 
 export interface ApiError {
   code: string

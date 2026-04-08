@@ -1,19 +1,9 @@
 import { useState } from 'react'
-import { Download, FileText } from 'lucide-react'
+import { Download, FileText, CheckCircle, XCircle } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
 import { useQuery } from '@tanstack/react-query'
 import { customersApi } from '@netlayer/api'
-import { queryKeys } from '@/services/queryClient'
-import { Card, PageLoader } from '@netlayer/ui'
 import { format, subMonths, startOfMonth } from 'date-fns'
-
-interface SlaMonth {
-  month: string
-  uptimePercent: number
-  totalDowntimeMinutes: number
-  incidents: number
-  creditsIssued: number
-}
 
 const MONTHS = Array.from({ length: 6 }, (_, i) => {
   const d = subMonths(new Date(), i)
@@ -21,130 +11,203 @@ const MONTHS = Array.from({ length: 6 }, (_, i) => {
 })
 
 function UptimeBar({ percent }: { percent: number }) {
-  const color = percent >= 99.9 ? '#00e676' : percent >= 99.5 ? '#ffb300' : '#ff4d4d'
+  const color =
+    percent >= 99.9 ? 'var(--status-online)' :
+    percent >= 99.5 ? 'var(--status-degraded)' :
+                      'var(--status-offline)'
   return (
     <div className="flex items-center gap-3">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
-        <div className="h-full rounded-full transition-all" style={{ width: `${percent}%`, background: color }} />
+      <div className="h-1.5 w-28 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--bg-surface-3)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${Math.min(100, percent)}%`, background: color }}
+        />
       </div>
-      <span className="font-mono text-xs font-medium min-w-[46px] text-right" style={{ color }}>
-        {percent.toFixed(2)}%
+      <span className="font-mono text-xs font-semibold tabular-nums" style={{ color }}>
+        {percent.toFixed(3)}%
       </span>
     </div>
   )
 }
 
+interface SlaMonth {
+  month?: string
+  period?: string
+  uptime_percent?: number
+  uptimePercent?: number
+  total_downtime_minutes?: number
+  totalDowntimeMinutes?: number
+  incidents?: number
+  credits_issued?: number
+  creditsIssued?: number
+}
+
 export function SlaReportsPage() {
   const { user } = useAuthStore()
+  const customerId = user?.customerId ?? user?.organizationId ?? ''
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[0])
 
   const { data: report, isLoading } = useQuery({
-    queryKey: queryKeys.customers.sla(user?.organizationId ?? '', selectedMonth),
-    queryFn: () => customersApi.getSlaReport(user?.organizationId ?? '', selectedMonth),
-    enabled: Boolean(user?.organizationId),
+    queryKey: ['customers', customerId, 'sla', selectedMonth],
+    queryFn: () => customersApi.getSlaReport(customerId, selectedMonth),
+    enabled: Boolean(customerId),
+    staleTime: 60_000,
   })
 
-  if (isLoading) return <PageLoader />
-
-  const months: SlaMonth[] = report?.months ?? []
-  const summary = report?.summary ?? { contractedSla: 99.5, currentUptime: 0, creditsOwed: 0 }
+  const summary = (report as any)?.summary ?? {}
+  const months: SlaMonth[] = (report as any)?.months ?? []
+  const contractedSla = Number(summary.contractedSla ?? summary.contracted_sla ?? 99.5)
+  const currentUptime = Number(summary.currentUptime ?? summary.current_uptime ?? 0)
+  const creditsOwed = Number(summary.creditsOwed ?? summary.credits_owed ?? 0)
+  const meetsTarget = currentUptime >= contractedSla
 
   return (
-    <div className="space-y-5 p-5">
+    <div className="space-y-5 p-5 animate-fade-in">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-lg font-semibold text-white">SLA Reports</h1>
-          <p className="text-xs text-muted">Service Level Agreement performance history</p>
+          <h1 className="font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>SLA Reports</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Service Level Agreement performance history</p>
         </div>
-        <button className="btn-ghost">
-          <Download size={13} />
-          Export PDF
+        <button className="btn-ghost gap-1.5">
+          <Download size={13} /> Export PDF
         </button>
       </div>
 
-      {/* SLA summary */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Summary */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
-          { label: 'Contracted SLA', value: `${summary.contractedSla}%`, color: '#00d4ff' },
-          { label: 'Current Month Uptime', value: `${summary.currentUptime?.toFixed(3) ?? '—'}%`, color: summary.currentUptime >= summary.contractedSla ? '#00e676' : '#ff4d4d' },
-          { label: 'Credits Owed', value: summary.creditsOwed > 0 ? `₹${(summary.creditsOwed / 100).toLocaleString('en-IN')}` : 'None', color: summary.creditsOwed > 0 ? '#ffb300' : '#6b7a99' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="card p-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted">{label}</p>
-            <p className="mt-1 font-mono text-xl font-medium" style={{ color }}>{value}</p>
+          {
+            label: 'Contracted SLA',
+            value: isLoading ? '—' : `${contractedSla}%`,
+            icon: FileText,
+            accent: 'var(--brand)',
+          },
+          {
+            label: 'Current Month',
+            value: isLoading ? '—' : (currentUptime ? `${currentUptime.toFixed(3)}%` : '—'),
+            icon: meetsTarget ? CheckCircle : XCircle,
+            accent: isLoading ? 'var(--text-muted)' : meetsTarget ? 'var(--status-online)' : 'var(--status-offline)',
+          },
+          {
+            label: 'Credits Owed',
+            value: isLoading ? '—' : (creditsOwed > 0 ? `₹${creditsOwed.toLocaleString('en-IN')}` : 'None'),
+            icon: Download,
+            accent: creditsOwed > 0 ? 'var(--status-degraded)' : 'var(--text-muted)',
+          },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <div key={label} className="metric-card" style={{ borderTop: `2px solid ${accent}` }}>
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `color-mix(in srgb, ${accent} 12%, transparent)`, color: accent }}>
+                <Icon size={14} />
+              </span>
+            </div>
+            {isLoading ? (
+              <div className="skeleton h-7 w-24 rounded" />
+            ) : (
+              <p className="font-mono text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+            )}
           </div>
         ))}
       </div>
 
       {/* Month selector */}
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted">View month:</span>
-        <div className="flex gap-1">
+      <div className="flex items-center gap-3">
+        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Period:</span>
+        <div className="filter-tab-group">
           {MONTHS.map(m => (
-            <button
-              key={m}
+            <button key={m}
               onClick={() => setSelectedMonth(m)}
-              className={selectedMonth === m
-                ? 'rounded px-2.5 py-1 text-[11px] font-semibold bg-brand/15 text-brand border border-brand/25'
-                : 'rounded px-2.5 py-1 text-[11px] text-muted border border-border hover:text-white transition-colors'
-              }
-            >
+              className={selectedMonth === m ? 'filter-tab-active' : 'filter-tab'}>
               {format(new Date(m + '-01'), 'MMM yyyy')}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Monthly uptime table */}
-      <Card title="Monthly SLA Performance" noPadding>
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-border">
-              {['Month', 'Uptime', 'Downtime', 'Incidents', 'Credits'].map(h => (
-                <th key={h} className="table-th">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {months.length === 0 && (
+      {/* Table */}
+      <div className="card overflow-hidden">
+        <div className="card-header">
+          <h3 className="card-title">Monthly SLA Performance</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface-2)' }}>
               <tr>
-                <td colSpan={5} className="py-12 text-center text-xs text-muted">
-                  No SLA data for this period
-                </td>
+                <th className="table-th">Month</th>
+                <th className="table-th">Uptime</th>
+                <th className="table-th">Downtime</th>
+                <th className="table-th">Incidents</th>
+                <th className="table-th">Credits</th>
               </tr>
-            )}
-            {months.map((m) => (
-              <tr key={m.month} className="table-row">
-                <td className="table-td">
-                  <div className="flex items-center gap-2">
-                    <FileText size={12} className="text-muted" />
-                    <span className="font-mono text-xs">{format(new Date(m.month + '-01'), 'MMMM yyyy')}</span>
-                  </div>
-                </td>
-                <td className="table-td w-52">
-                  <UptimeBar percent={m.uptimePercent} />
-                </td>
-                <td className="table-td">
-                  <span className={`font-mono text-xs ${m.totalDowntimeMinutes > 0 ? 'text-status-offline' : 'text-muted'}`}>
-                    {m.totalDowntimeMinutes > 0 ? `${m.totalDowntimeMinutes}m` : '0'}
-                  </span>
-                </td>
-                <td className="table-td">
-                  <span className={`font-mono text-xs ${m.incidents > 0 ? 'text-status-degraded' : 'text-muted'}`}>
-                    {m.incidents}
-                  </span>
-                </td>
-                <td className="table-td">
-                  {m.creditsIssued > 0
-                    ? <span className="font-mono text-xs text-status-online">₹{(m.creditsIssued / 100).toLocaleString('en-IN')}</span>
-                    : <span className="text-[10px] text-muted">—</span>
-                  }
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="table-row">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <td key={j} className="table-td"><div className="skeleton h-4 rounded w-full max-w-[100px]" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : months.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                    No SLA data for this period
+                  </td>
+                </tr>
+              ) : (
+                months.map((m: SlaMonth, i: number) => {
+                  const period = m.month ?? m.period ?? ''
+                  const uptime = Number(m.uptime_percent ?? m.uptimePercent ?? 0)
+                  const downtime = Number(m.total_downtime_minutes ?? m.totalDowntimeMinutes ?? 0)
+                  const incidents = Number(m.incidents ?? 0)
+                  const credits = Number(m.credits_issued ?? m.creditsIssued ?? 0)
+
+                  return (
+                    <tr key={period || i} className="table-row">
+                      <td className="table-td">
+                        <div className="flex items-center gap-2">
+                          <FileText size={12} style={{ color: 'var(--text-dim)' }} className="shrink-0" />
+                          <span className="font-mono text-xs" style={{ color: 'var(--text-primary)' }}>
+                            {period ? format(new Date(period + '-01'), 'MMMM yyyy') : '—'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="table-td w-52">
+                        {uptime > 0 ? <UptimeBar percent={uptime} /> : <span style={{ color: 'var(--text-dim)' }} className="text-xs">—</span>}
+                      </td>
+                      <td className="table-td">
+                        <span className="font-mono text-xs" style={{ color: downtime > 0 ? 'var(--status-offline)' : 'var(--text-muted)' }}>
+                          {downtime > 0 ? `${downtime}m` : '0'}
+                        </span>
+                      </td>
+                      <td className="table-td">
+                        <span className="font-mono text-xs" style={{ color: incidents > 0 ? 'var(--status-degraded)' : 'var(--text-muted)' }}>
+                          {incidents}
+                        </span>
+                      </td>
+                      <td className="table-td">
+                        {credits > 0 ? (
+                          <span className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+                                style={{ color: 'var(--status-online)', backgroundColor: 'color-mix(in srgb, var(--status-online) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--status-online) 25%, transparent)' }}>
+                            ₹{credits.toLocaleString('en-IN')}
+                          </span>
+                        ) : (
+                          <span className="text-[10px]" style={{ color: 'var(--text-dim)' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

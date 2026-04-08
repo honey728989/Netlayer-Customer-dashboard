@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@netlayer/ui": ["../../packages/ui/src"],
+      "@netlayer/api": ["../../packages/api/src"],
+      "@netlayer/auth": ["../../packages/auth/src"]
+    }
+  },
+  "include": [
+    "src",
+    "../noc/src/pages/LoginPage.tsx",
+    "../noc/src/components/layout",
+    "../noc/src/components/auth",
+    "../noc/src/components/tickets",
+    "../noc/src/store",
+    "../noc/src/hooks/useWebSockets.ts",
+    "../noc/src/hooks/useQueries.ts",
+    "../noc/src/services"
+  ],
+  "references": []
+}

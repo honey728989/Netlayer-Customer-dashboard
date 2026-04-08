@@ -1,132 +1,162 @@
 import { useState } from 'react'
+import { Globe, Search } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
-import { useSites } from '@/hooks/useQueries'
-import { DataTable, SearchInput, StatusPill, BandwidthBar, type Column } from '@netlayer/ui'
+import { sitesApi } from '@netlayer/api'
 import type { Site } from '@netlayer/api'
 
-const COLUMNS: Column<Site>[] = [
-  {
-    key: 'name',
-    header: 'Site',
-    render: (s) => (
-      <div>
-        <p className="font-medium text-white">{s.name}</p>
-        <p className="text-[10px] text-muted">{s.address}</p>
-      </div>
-    ),
-  },
-  {
-    key: 'status',
-    header: 'Status',
-    width: '110px',
-    render: (s) => <StatusPill status={s.status} />,
-  },
-  {
-    key: 'type',
-    header: 'Type',
-    width: '130px',
-    render: (s) => <span className="font-mono text-[10px] text-muted">{s.type}</span>,
-  },
-  {
-    key: 'bw',
-    header: 'Bandwidth',
-    width: '150px',
-    render: (s) => (
-      <div>
-        <BandwidthBar percent={s.bandwidthUsedPercent} />
-        <p className="mt-1 font-mono text-[10px] text-muted">
-          {Math.round(s.bandwidthMbps * s.bandwidthUsedPercent / 100)} / {s.bandwidthMbps} Mbps
-        </p>
-      </div>
-    ),
-  },
-  {
-    key: 'latency',
-    header: 'Latency',
-    width: '90px',
-    render: (s) => (
-      <span className={`font-mono text-xs ${s.latencyMs > 30 ? 'text-status-degraded' : 'text-muted'}`}>
-        {s.latencyMs}ms
-      </span>
-    ),
-  },
-  {
-    key: 'sla',
-    header: 'SLA',
-    width: '80px',
-    render: (s) => (
-      <span className={`font-mono text-xs ${s.slaPercent >= 99.5 ? 'text-status-online' : 'text-status-degraded'}`}>
-        {s.slaPercent}%
-      </span>
-    ),
-  },
-  {
-    key: 'location',
-    header: 'Location',
-    render: (s) => (
-      <span className="text-xs text-muted">{s.city}, {s.state}</span>
-    ),
-  },
-]
+function SiteStatusDot({ status }: { status: string }) {
+  const s = status?.toUpperCase()
+  const color =
+    s === 'UP' || s === 'ONLINE'   ? 'var(--status-online)'   :
+    s === 'DOWN' || s === 'OFFLINE' ? 'var(--status-offline)'  :
+    s === 'DEGRADED'                ? 'var(--status-degraded)' :
+                                      'var(--brand)'
+  const label =
+    s === 'UP' || s === 'ONLINE'   ? 'Online'      :
+    s === 'DOWN' || s === 'OFFLINE' ? 'Offline'     :
+    s === 'DEGRADED'                ? 'Degraded'    :
+    s === 'MAINTENANCE'             ? 'Maintenance' : status
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+      style={{
+        color,
+        backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+      }}
+    >
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+      {label}
+    </span>
+  )
+}
 
 export function CustomerSites() {
   const { user } = useAuthStore()
+  const customerId = user?.customerId ?? user?.organizationId ?? ''
   const [search, setSearch] = useState('')
 
-  const { data, isLoading } = useSites({
-    customerId: user?.organizationId,
-    search: search || undefined,
-    pageSize: 50,
+  const { data: raw, isLoading } = useQuery({
+    queryKey: ['sites', 'list', customerId],
+    queryFn: () => sitesApi.list({ customerId, pageSize: 100 }),
+    enabled: Boolean(customerId),
+    staleTime: 30_000,
   })
 
-  const onlineCount = data?.data.filter(s => s.status === 'online').length ?? 0
-  const totalCount = data?.data.length ?? 0
+  const siteList = (Array.isArray(raw) ? raw : (raw as any)?.data ?? []) as Site[]
+  const filtered = siteList.filter(s =>
+    !search ||
+    s.name?.toLowerCase().includes(search.toLowerCase()) ||
+    (s.city ?? '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const online = siteList.filter(s => {
+    const st = s.status?.toUpperCase()
+    return st === 'UP' || st === 'ONLINE'
+  }).length
 
   return (
-    <div className="space-y-4 p-5">
+    <div className="space-y-5 p-5 animate-fade-in">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-lg font-semibold text-white">My Sites</h1>
-          <p className="text-xs text-muted">
-            {onlineCount} / {totalCount} online
-            {totalCount > 0 && (
-              <span className={`ml-2 ${onlineCount === totalCount ? 'text-status-online' : 'text-status-degraded'}`}>
-                ({Math.round((onlineCount / totalCount) * 100)}% uptime)
-              </span>
-            )}
+          <h1 className="font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>My Sites</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {isLoading ? 'Loading…' : `${online} of ${siteList.length} online`}
           </p>
+        </div>
+        <div className="hidden md:flex gap-2">
+          {(['UP', 'DOWN', 'DEGRADED'] as const).map(st => {
+            const count = siteList.filter(s => {
+              const x = s.status?.toUpperCase()
+              return st === 'UP' ? (x === 'UP' || x === 'ONLINE') :
+                     st === 'DOWN' ? (x === 'DOWN' || x === 'OFFLINE') :
+                     x === st
+            }).length
+            if (!count) return null
+            return <SiteStatusDot key={st} status={st === 'UP' ? 'ONLINE' : st === 'DOWN' ? 'OFFLINE' : st} />
+          })}
         </div>
       </div>
 
-      {/* Status summary pills */}
-      <div className="flex flex-wrap gap-2">
-        {(['online', 'offline', 'degraded', 'maintenance'] as const).map(status => {
-          const count = data?.data.filter(s => s.status === status).length ?? 0
-          if (!count && status !== 'online') return null
-          return (
-            <StatusPill key={status} status={status} size="md" />
-          )
-        })}
+      {/* Search */}
+      <div className="relative w-64">
+        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-dim)' }} />
+        <input className="input-field pl-7 w-full" placeholder="Search sites, cities…"
+          value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      <div className="flex items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Search sites, locations…"
-          className="w-64"
-        />
-      </div>
-
+      {/* Table */}
       <div className="card overflow-hidden">
-        <DataTable
-          columns={COLUMNS}
-          data={data?.data ?? []}
-          keyExtractor={(s) => s.id}
-          loading={isLoading}
-          emptyTitle="No sites found"
-          stickyHeader
-        />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface-2)' }}>
+              <tr>
+                <th className="table-th">Site</th>
+                <th className="table-th">Status</th>
+                <th className="table-th">Type</th>
+                <th className="table-th">Location</th>
+                <th className="table-th">Bandwidth</th>
+                <th className="table-th">IP Block</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="table-row">
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="table-td"><div className="skeleton h-4 rounded w-full max-w-[100px]" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center" style={{ color: 'var(--text-muted)' }}>
+                    <Globe size={24} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">{search ? 'No sites match your search' : 'No sites found'}</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((site: Site) => (
+                  <tr key={site.id} className="table-row">
+                    <td className="table-td">
+                      <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>{site.name}</p>
+                      <p className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>{site.code}</p>
+                    </td>
+                    <td className="table-td">
+                      <SiteStatusDot status={site.status} />
+                    </td>
+                    <td className="table-td">
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                            style={{ color: 'var(--brand)', backgroundColor: 'color-mix(in srgb, var(--brand) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand) 20%, transparent)' }}>
+                        {site.type ?? '—'}
+                      </span>
+                    </td>
+                    <td className="table-td">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {[site.city, site.state].filter(Boolean).join(', ') || '—'}
+                      </span>
+                    </td>
+                    <td className="table-td font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {site.total_bandwidth_mbps ?? site.bandwidth_mbps ?? site.bandwidthMbps ?? '—'} Mbps
+                    </td>
+                    <td className="table-td font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                      {site.ip_block ?? '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {!isLoading && filtered.length > 0 && (
+          <div className="px-4 py-2 text-[11px]" style={{ color: 'var(--text-dim)', borderTop: '1px solid var(--border)' }}>
+            {filtered.length} site{filtered.length !== 1 ? 's' : ''}
+          </div>
+        )}
       </div>
     </div>
   )

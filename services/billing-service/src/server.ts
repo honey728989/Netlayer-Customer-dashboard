@@ -68,17 +68,14 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/customers/:id/billing", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
 
-    const customer = await query<{
-      id: string;
-      zoho_customer_id: string;
-    }>(
+    const customer = await query<{ id: string; zoho_customer_id: string | null; }>(
       process.env.DATABASE_URL!,
-      `
-        SELECT id, zoho_customer_id
-        FROM customers
-        WHERE id = $1
-      `,
+      `SELECT id, zoho_customer_id FROM customers WHERE id = $1`,
       [params.id]
     );
 
@@ -86,8 +83,31 @@ const routes: FastifyPluginAsync = async (app) => {
       return reply.code(404).send({ message: "Customer not found" });
     }
 
-    const invoices = await zoho.listInvoices(customer.rows[0].zoho_customer_id);
-    return invoices.invoices;
+    // Try Zoho first, fall back to local DB
+    if (customer.rows[0].zoho_customer_id && process.env.ZOHO_BOOKS_BASE_URL) {
+      try {
+        const invoices = await zoho.listInvoices(customer.rows[0].zoho_customer_id);
+        return invoices.invoices;
+      } catch {
+        // fallthrough to local DB
+      }
+    }
+
+    const localInvoices = await query(
+      process.env.DATABASE_URL!,
+      `SELECT id, zoho_invoice_id, status, payment_status, payload, created_at, updated_at
+       FROM billing_invoices WHERE customer_id = $1 ORDER BY created_at DESC`,
+      [params.id]
+    );
+
+    return localInvoices.rows.map((r) => ({
+      invoice_id: r.zoho_invoice_id,
+      status: r.status,
+      payment_status: r.payment_status,
+      ...((r.payload as Record<string, unknown>) ?? {}),
+      _local_id: r.id,
+      _created_at: r.created_at
+    }));
   });
 
   app.get("/customers/:id/ledger", { preHandler: [requireAuth] }, async (request, reply) => {

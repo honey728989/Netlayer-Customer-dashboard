@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
-const BASE_URL = import.meta.env?.VITE_API_URL ?? ''
+const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 class HttpClient {
   private instance: AxiosInstance

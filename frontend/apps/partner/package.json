@@ -11,9 +11,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@netlayer/api": "*",
-    "@netlayer/auth": "*",
-    "@netlayer/ui": "*",
+    "@netlayer/api": "workspace:*",
+    "@netlayer/auth": "workspace:*",
+    "@netlayer/ui": "workspace:*",
     "@tanstack/react-query": "^5.45.0",
     "@tanstack/react-query-devtools": "^5.45.0",
     "axios": "^1.7.0",

@@ -1,83 +1,385 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --scrollbar-thumb: #252b3a;
-    --scrollbar-track: transparent;
-  }
+/* ─── CSS Variables — Dark (default) ───────────────────────────────────────── */
+:root {
+  --bg-base:         #0a0c10;
+  --bg-surface:      #111318;
+  --bg-surface-2:    #181b22;
+  --bg-surface-3:    #1e2330;
+  --border:          #1e2330;
+  --border-2:        #252b3a;
+  --text-primary:    #f0f2f7;
+  --text-muted:      #6b7a99;
+  --text-dim:        #3d4860;
+  --brand:           #00d4ff;
+  --status-online:   #00e676;
+  --status-offline:  #ff4d4d;
+  --status-degraded: #ffb300;
+  --status-info:     #9c7bff;
+  --scrollbar-thumb: #252b3a;
+  --scrollbar-track: transparent;
+  --card-shadow:     0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --elevated-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
+  --dropdown-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+}
 
+/* ─── CSS Variables — Light mode ────────────────────────────────────────────── */
+.light {
+  --bg-base:         #f0f2f5;
+  --bg-surface:      #ffffff;
+  --bg-surface-2:    #f7f8fa;
+  --bg-surface-3:    #eef0f4;
+  --border:          #e2e6ed;
+  --border-2:        #c8cfd9;
+  --text-primary:    #1a1f2e;
+  --text-muted:      #5a6680;
+  --text-dim:        #9aa3b5;
+  --brand:           #006fd6;
+  --status-online:   #00a854;
+  --status-offline:  #e03535;
+  --status-degraded: #d48a00;
+  --status-info:     #7a52cc;
+  --scrollbar-thumb: #c8cfd9;
+  --scrollbar-track: transparent;
+  --card-shadow:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --elevated-shadow: 0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  --dropdown-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.07);
+}
+
+/* ─── Base Styles ────────────────────────────────────────────────────────────── */
+@layer base {
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
-
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #252b3a; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
   html { font-size: 13px; }
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
 }
 
+/* ─── Semantic classes using CSS vars ───────────────────────────────────────── */
 @layer components {
+
+  /* ─── Layout ──────────────────────────────────────────────────────────────── */
+  .bg-base    { background-color: var(--bg-base) !important; }
+  .bg-surface { background-color: var(--bg-surface) !important; }
+  .bg-surface-2 { background-color: var(--bg-surface-2) !important; }
+  .bg-surface-3 { background-color: var(--bg-surface-3) !important; }
+  .border-border { border-color: var(--border) !important; }
+  .border-border-2 { border-color: var(--border-2) !important; }
+  .text-white { color: var(--text-primary) !important; }
+  .text-muted { color: var(--text-muted) !important; }
+  .text-dim   { color: var(--text-dim) !important; }
+  .text-brand { color: var(--brand) !important; }
+
+  /* ─── Cards ─────────────────────────────────────────────────────────────────── */
   .card {
-    @apply bg-surface border border-border rounded-lg;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: var(--card-shadow);
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-
+  .card:hover { border-color: var(--border-2); }
+  .card-elevated {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: var(--elevated-shadow);
+  }
   .card-header {
-    @apply flex items-center justify-between px-4 py-3 border-b border-border;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
   }
-
   .card-title {
-    @apply text-xs font-semibold uppercase tracking-widest text-muted;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
   }
 
+  /* ─── Buttons ───────────────────────────────────────────────────────────────── */
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-brand text-black text-xs font-semibold rounded-md hover:bg-brand/90 transition-colors;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-all;
+    background-color: var(--brand);
+    color: #fff;
   }
+  .light .btn-primary { color: #fff; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:active { opacity: 0.75; }
 
   .btn-ghost {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 text-muted text-xs font-medium rounded-md hover:bg-surface-2 hover:text-white transition-colors;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover { background-color: var(--bg-surface-2); color: var(--text-primary); }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .btn-outline:hover { border-color: var(--border-2); color: var(--text-primary); }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors;
+    color: var(--status-offline);
+    background-color: color-mix(in srgb, var(--status-offline) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-offline) 25%, transparent);
+  }
+  .btn-danger:hover {
+    background-color: color-mix(in srgb, var(--status-offline) 20%, transparent);
   }
 
+  /* ─── Status Badges ─────────────────────────────────────────────────────────── */
   .status-online {
-    @apply inline-flex items-center gap-1 text-status-online text-[10px] font-semibold bg-status-online/10 border border-status-online/25 px-2 py-0.5 rounded;
+    @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded;
+    color: var(--status-online);
+    background-color: color-mix(in srgb, var(--status-online) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-online) 25%, transparent);
   }
-
   .status-offline {
-    @apply inline-flex items-center gap-1 text-status-offline text-[10px] font-semibold bg-status-offline/10 border border-status-offline/25 px-2 py-0.5 rounded;
+    @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded;
+    color: var(--status-offline);
+    background-color: color-mix(in srgb, var(--status-offline) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-offline) 25%, transparent);
   }
-
   .status-degraded {
-    @apply inline-flex items-center gap-1 text-status-degraded text-[10px] font-semibold bg-status-degraded/10 border border-status-degraded/25 px-2 py-0.5 rounded;
+    @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded;
+    color: var(--status-degraded);
+    background-color: color-mix(in srgb, var(--status-degraded) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-degraded) 25%, transparent);
+  }
+  .status-maintenance {
+    @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded;
+    color: var(--status-info);
+    background-color: color-mix(in srgb, var(--status-info) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-info) 25%, transparent);
   }
 
+  /* ─── Input Fields ──────────────────────────────────────────────────────────── */
   .input-field {
-    @apply bg-surface-2 border border-border text-white text-xs rounded-md px-3 py-2 outline-none focus:border-brand/60 focus:ring-1 focus:ring-brand/20 placeholder:text-muted transition-colors w-full;
+    @apply w-full text-xs rounded-md px-3 py-2 outline-none transition-colors;
+    background-color: var(--bg-surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
   }
+  .input-field::placeholder { color: var(--text-dim); }
+  .input-field:focus { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 20%, transparent); }
 
+  /* ─── Badges ────────────────────────────────────────────────────────────────── */
   .badge-critical {
-    @apply text-[10px] font-mono font-semibold bg-status-offline/15 text-status-offline border border-status-offline/30 px-1.5 py-0.5 rounded;
+    @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded;
+    color: var(--status-offline);
+    background-color: color-mix(in srgb, var(--status-offline) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-offline) 25%, transparent);
   }
-
   .badge-warn {
-    @apply text-[10px] font-mono font-semibold bg-status-degraded/15 text-status-degraded border border-status-degraded/30 px-1.5 py-0.5 rounded;
+    @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded;
+    color: var(--status-degraded);
+    background-color: color-mix(in srgb, var(--status-degraded) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-degraded) 25%, transparent);
   }
-
   .badge-info {
-    @apply text-[10px] font-mono font-semibold bg-brand/10 text-brand border border-brand/25 px-1.5 py-0.5 rounded;
+    @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded;
+    color: var(--brand);
+    background-color: color-mix(in srgb, var(--brand) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand) 20%, transparent);
+  }
+  .badge-success {
+    @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded;
+    color: var(--status-online);
+    background-color: color-mix(in srgb, var(--status-online) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-online) 25%, transparent);
+  }
+  .badge-neutral {
+    @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded;
+    color: var(--text-muted);
+    background-color: var(--bg-surface-3);
+    border: 1px solid var(--border);
   }
 
+  /* ─── Tables ────────────────────────────────────────────────────────────────── */
   .table-row {
-    @apply border-b border-border hover:bg-surface-2 transition-colors cursor-pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.1s;
   }
-
+  .table-row:last-child { border-bottom: none; }
+  .table-row:hover { background-color: var(--bg-surface-2); }
   .table-th {
-    @apply px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-dim;
+    @apply px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest;
+    color: var(--text-dim);
+  }
+  .table-td { @apply px-4 py-2.5 text-xs; color: var(--text-primary); }
+
+  /* ─── Skeleton / Shimmer ─────────────────────────────────────────────────────── */
+  .skeleton {
+    @apply rounded animate-shimmer;
+    background-color: var(--bg-surface-2);
+    background-image: linear-gradient(90deg, var(--bg-surface-2) 0%, var(--bg-surface-3) 50%, var(--bg-surface-2) 100%);
+    background-size: 600px 100%;
   }
 
-  .table-td {
-    @apply px-4 py-3 text-xs;
+  /* ─── Filter Tabs ────────────────────────────────────────────────────────────── */
+  .filter-tab-group {
+    @apply flex items-center gap-0.5 rounded-md p-0.5;
+    border: 1px solid var(--border);
+    background-color: var(--bg-surface);
   }
+  .filter-tab {
+    @apply rounded px-2.5 py-1 text-[11px] cursor-pointer transition-colors;
+    color: var(--text-muted);
+  }
+  .filter-tab:hover { color: var(--text-primary); }
+  .filter-tab-active {
+    @apply rounded px-2.5 py-1 text-[11px] font-semibold;
+    background-color: color-mix(in srgb, var(--brand) 15%, transparent);
+    color: var(--brand);
+  }
+
+  /* ─── Live Indicator ─────────────────────────────────────────────────────────── */
+  .live-dot {
+    @apply flex items-center gap-1.5 font-mono text-[10px];
+    color: var(--status-online);
+  }
+
+  /* ─── Section label ──────────────────────────────────────────────────────────── */
+  .section-label {
+    @apply text-[9px] font-semibold uppercase tracking-widest px-3 mb-1;
+    color: var(--text-dim);
+  }
+
+  /* ─── Sidebar ────────────────────────────────────────────────────────────────── */
+  .sidebar-surface {
+    background-color: var(--bg-surface);
+    border-right: 1px solid var(--border);
+  }
+  .nav-item-active {
+    background-color: color-mix(in srgb, var(--brand) 12%, transparent);
+    color: var(--brand);
+  }
+  .nav-item-inactive {
+    color: var(--text-muted);
+  }
+  .nav-item-inactive:hover {
+    background-color: var(--bg-surface-2);
+    color: var(--text-primary);
+  }
+
+  /* ─── Topbar ─────────────────────────────────────────────────────────────────── */
+  .topbar-surface {
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ─── Metric Cards (large dashboard numbers) ─────────────────────────────────── */
+  .metric-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    box-shadow: var(--card-shadow);
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card:hover {
+    border-color: var(--border-2);
+    box-shadow: var(--elevated-shadow);
+    transform: translateY(-1px);
+  }
+
+  /* ─── Gradient accent bar ────────────────────────────────────────────────────── */
+  .accent-bar-top::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--brand), transparent);
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  /* ─── Dropdown ───────────────────────────────────────────────────────────────── */
+  .dropdown-surface {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: var(--dropdown-shadow);
+  }
+
+  /* ─── Modal ──────────────────────────────────────────────────────────────────── */
+  .modal-surface {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: var(--dropdown-shadow);
+  }
+
+  /* ─── Priority Stage Pills ────────────────────────────────────────────────────── */
+  .stage-new        { @apply badge-neutral; }
+  .stage-contacted  { @apply badge-info; }
+  .stage-qualified  { color: #00b8d4; background-color: rgba(0,184,212,0.1); border: 1px solid rgba(0,184,212,0.25); @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded; }
+  .stage-proposal   { color: #7c4dff; background-color: rgba(124,77,255,0.1); border: 1px solid rgba(124,77,255,0.25); @apply inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded; }
+  .stage-negotiation{ @apply badge-warn; }
+  .stage-won        { @apply badge-success; }
+  .stage-lost       { @apply badge-critical; }
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .animate-fade-in     { animation: fadeIn 0.25s ease-out; }
+  .animate-slide-up    { animation: slideUp 0.22s ease-out; }
+  .animate-slide-right { animation: slideInRight 0.25s ease-out; }
+  .animate-scale-in    { animation: scaleIn 0.15s ease-out; }
+  .animate-shimmer     {
+    animation: shimmer 1.6s ease-in-out infinite;
+    background-size: 600px 100%;
+  }
+  .animate-pulse-slow  { animation: pulse 2.5s cubic-bezier(0.4,0,0.6,1) infinite; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+  }
+
+  /* stagger animations for list items */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
 }

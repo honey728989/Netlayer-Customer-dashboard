@@ -1,15 +1,15 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { PageLoader } from '@netlayer/ui'
-import { LoginPage } from '../../noc/src/pages/LoginPage'
-import { AppShell } from '../../noc/src/components/layout/AppShell'
-import { RequireAuth, RequireRole, RoleRedirect } from '../../noc/src/components/auth/RouteGuards'
+import { LoginPage } from '../../../noc/src/pages/LoginPage'
+import { AppShell } from '../../../noc/src/components/layout/AppShell'
+import { RequireAuth, RequireRole, RoleRedirect } from '../../../noc/src/components/auth/RouteGuards'
 
-const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })))
-const CustomerSites     = lazy(() => import('./pages/CustomerSites').then(m => ({ default: m.CustomerSites })))
-const CustomerTickets   = lazy(() => import('./pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
-const BillingPage       = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })))
-const SlaReportsPage    = lazy(() => import('./pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
+const CustomerDashboard = lazy(() => import('../pages/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })))
+const CustomerSites     = lazy(() => import('../pages/CustomerSites').then(m => ({ default: m.CustomerSites })))
+const CustomerTickets   = lazy(() => import('../pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
+const BillingPage       = lazy(() => import('../pages/BillingPage').then(m => ({ default: m.BillingPage })))
+const SlaReportsPage    = lazy(() => import('../pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>

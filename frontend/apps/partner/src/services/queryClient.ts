@@ -1,1 +1,1 @@
-export { queryClient, queryKeys } from '../../noc/src/services/queryClient'
+export { queryClient, queryKeys } from '../../../noc/src/services/queryClient'

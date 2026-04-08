@@ -112,7 +112,7 @@ function NavItemRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) 
       to={item.to}
       end={item.end}
       title={collapsed ? item.label : undefined}
-      className={({ isActive }) =>
+      className={({ isActive }: { isActive: boolean }) =>
         clsx(
           'group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium transition-all outline-none',
           'focus-visible:ring-2 focus-visible:ring-brand/50',
@@ -121,7 +121,7 @@ function NavItemRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) 
         )
       }
     >
-      {({ isActive }) => (
+      {({ isActive }: { isActive: boolean }) => (
         <>
           {isActive && (
             <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand" />

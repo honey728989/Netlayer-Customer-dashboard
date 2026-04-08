@@ -3,6 +3,8 @@ import type {
   Customer,
   Partner,
   Lead,
+  Service,
+  FeasibilityRequest,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -80,29 +82,76 @@ function normalizeAuthResponse(data: Record<string, unknown>): AuthResponse {
   }
 }
 
+function toPaginated<T>(raw: unknown, params?: QueryParams): PaginatedResponse<T> {
+  if (Array.isArray(raw)) {
+    return { data: raw as T[], total: (raw as T[]).length, page: params?.page ?? 1, pageSize: params?.pageSize ?? (raw as T[]).length, totalPages: 1 }
+  }
+  return raw as PaginatedResponse<T>
+}
+
 export const customersApi = {
   list: (params?: QueryParams) =>
-    http.get<PaginatedResponse<Customer>>('/customers', { params }).then((r) => r.data),
+    http.get('/customers', { params }).then((r) => toPaginated<Customer>(r.data, params)),
 
   getById: (id: string) =>
     http.get<Customer>(`/customers/${id}`).then((r) => r.data),
+
+  getOverview: (id: string) =>
+    http.get(`/customers/${id}/overview`).then((r) => r.data),
+
+  getServices: (id: string) =>
+    http.get<Service[]>(`/customers/${id}/services`).then((r) => r.data),
 
   getSlaReport: (id: string, month: string) =>
     http.get(`/customers/${id}/sla-report`, { params: { month } }).then((r) => r.data),
 
   getBilling: (id: string) =>
     http.get(`/customers/${id}/billing`).then((r) => r.data),
+
+  getLedger: (id: string) =>
+    http.get(`/customers/${id}/ledger`).then((r) => r.data),
+
+  getHeatmap: (id: string) =>
+    http.get(`/customers/${id}/heatmap`).then((r) => r.data),
+}
+
+export const feasibilityApi = {
+  list: (params?: QueryParams) =>
+    http.get<FeasibilityRequest[]>('/feasibility', { params }).then((r) => Array.isArray(r.data) ? r.data : (r.data as any)?.data ?? []),
+
+  getById: (id: string) =>
+    http.get<FeasibilityRequest>(`/feasibility/${id}`).then((r) => r.data),
+
+  create: (payload: Record<string, unknown>) =>
+    http.post<FeasibilityRequest>('/feasibility', payload).then((r) => r.data),
+
+  updateStatus: (id: string, status: string, notes?: string, surveyDate?: string) =>
+    http.patch<FeasibilityRequest>(`/feasibility/${id}/status`, { status, notes, surveyDate }).then((r) => r.data),
+}
+
+export const leadsApi = {
+  list: (params?: QueryParams) =>
+    http.get<Lead[]>('/leads', { params }).then((r) => Array.isArray(r.data) ? r.data : (r.data as any)?.data ?? []),
+
+  getStats: () =>
+    http.get('/leads/stats').then((r) => r.data),
+
+  create: (payload: Record<string, unknown>) =>
+    http.post<Lead>('/leads', payload).then((r) => r.data),
+
+  update: (id: string, payload: Record<string, unknown>) =>
+    http.patch<Lead>(`/leads/${id}`, payload).then((r) => r.data),
 }
 
 export const partnersApi = {
   list: (params?: QueryParams) =>
-    http.get<PaginatedResponse<Partner>>('/partners', { params }).then((r) => r.data),
+    http.get('/partners', { params }).then((r) => toPaginated<Partner>(r.data, params)),
 
   getById: (id: string) =>
     http.get<Partner>(`/partners/${id}`).then((r) => r.data),
 
   getLeads: (partnerId: string, params?: QueryParams) =>
-    http.get<PaginatedResponse<Lead>>(`/partners/${partnerId}/leads`, { params }).then((r) => r.data),
+    http.get<Lead[]>(`/partners/${partnerId}/leads`, { params }).then((r) => Array.isArray(r.data) ? r.data : (r.data as any)?.data ?? []),
 
   createLead: (partnerId: string, payload: Partial<Lead>) =>
     http.post<Lead>(`/partners/${partnerId}/leads`, payload).then((r) => r.data),
@@ -110,22 +159,20 @@ export const partnersApi = {
   updateLead: (partnerId: string, leadId: string, payload: Partial<Lead>) =>
     http.patch<Lead>(`/partners/${partnerId}/leads/${leadId}`, payload).then((r) => r.data),
 
+  getCustomers: (partnerId: string) =>
+    http.get<Customer[]>(`/partners/${partnerId}/customers`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  getRevenue: (partnerId: string) =>
+    http.get(`/partners/${partnerId}/revenue`).then((r) => r.data),
+
   getCommissions: (partnerId: string, params?: QueryParams) =>
-    http
-      .get<PaginatedResponse<Commission>>(`/partners/${partnerId}/commissions`, { params })
-      .then((r) => r.data),
+    http.get<Commission[]>(`/partners/${partnerId}/commission`, { params }).then((r) => Array.isArray(r.data) ? r.data : []),
 
   getDashboardStats: (partnerId: string) =>
-    http
-      .get<{
-        totalClients: number
-        monthlyRevenue: number
-        pendingCommission: number
-        activeLeads: number
-        conversionRate: number
-        pendingInstalls: number
-      }>(`/partners/${partnerId}/stats`)
-      .then((r) => r.data),
+    http.get(`/partners/${partnerId}/dashboard`).then((r) => r.data),
+
+  getPipeline: () =>
+    http.get('/sales/pipeline').then((r) => r.data),
 }
 
 export const authApi = {
