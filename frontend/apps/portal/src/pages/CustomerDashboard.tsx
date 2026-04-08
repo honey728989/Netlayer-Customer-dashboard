@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Activity, AlertTriangle, CreditCard, Globe, Server, Ticket as TicketIcon, TrendingUp } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
@@ -95,10 +96,17 @@ export function CustomerDashboard() {
     queryFn: () => alertsApi.getActiveCount(),
     refetchInterval: 15_000,
   })
+  const { data: siteBilling = [] } = useQuery({
+    queryKey: ['customers', customerId, 'site-billing'],
+    queryFn: () => customersApi.getSiteBilling(customerId),
+    enabled: Boolean(customerId),
+    staleTime: 60_000,
+  })
 
   const siteList = (Array.isArray(sites) ? sites : (sites as { data?: Site[] })?.data ?? []) as Site[]
   const filteredSites = applySiteFilters(siteList, { selectedSiteId, city, status, serviceType })
   const tickets = applyTicketFilters((ticketsData?.data ?? []) as Ticket[], { selectedSiteId })
+  const billingMap = new Map(siteBilling.map((item) => [item.siteId, item]))
   const totalSites = filteredSites.length
   const onlineFilteredSites = filteredSites.filter((site) => {
     const normalized = site.status?.toUpperCase()
@@ -119,6 +127,22 @@ export function CustomerDashboard() {
     mbps: Math.max(120, baseBandwidth + (index - 2) * 26 + (degradedSites > 0 ? -14 : 10)),
   }))
   const scopeLabel = selectedSiteName ?? (city ? `${city} portfolio` : 'Full customer portfolio')
+  const prioritySites = [...filteredSites]
+    .sort((left, right) => {
+      const getSeverity = (value: string) => {
+        const normalized = value?.toUpperCase()
+        if (normalized === 'DOWN' || normalized === 'OFFLINE') return 0
+        if (normalized === 'DEGRADED') return 1
+        if (normalized === 'MAINTENANCE') return 2
+        return 3
+      }
+
+      const severityDifference = getSeverity(left.status) - getSeverity(right.status)
+      if (severityDifference !== 0) return severityDifference
+
+      return Number(right.latencyMs ?? 0) - Number(left.latencyMs ?? 0)
+    })
+    .slice(0, 3)
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -246,10 +270,78 @@ export function CustomerDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <div className="card p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="card-title">Priority Sites</h3>
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                Sites that currently deserve the fastest customer attention in this scope.
+              </p>
+            </div>
+            <Link to="/portal/sites" className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>
+              All sites →
+            </Link>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {prioritySites.length === 0 ? (
+              <div className="rounded-xl border px-4 py-5 text-sm md:col-span-3" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                No sites available for the current scope.
+              </div>
+            ) : (
+              prioritySites.map((site) => {
+                const siteCommercial = billingMap.get(site.id)
+                return (
+                  <Link
+                    key={site.id}
+                    to={`/portal/sites/${site.id}`}
+                    className="rounded-xl border p-3 transition-colors hover:bg-surface-2"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-surface-2)' }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <SiteStatusDot status={site.status} />
+                        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{site.name}</p>
+                      </div>
+                      <span className="font-mono text-[10px]" style={{ color: 'var(--brand)' }}>
+                        {site.total_bandwidth_mbps ?? site.bandwidth_mbps ?? '--'} Mbps
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+                      {[site.city, site.state].filter(Boolean).join(', ') || 'No location'}
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+                      <div className="rounded-md bg-surface-2 px-2 py-1">
+                        <p className="text-dim">Latency</p>
+                        <p className="mt-0.5 font-mono text-white">{Number(site.latencyMs ?? 0).toFixed(1)} ms</p>
+                      </div>
+                      <div className="rounded-md bg-surface-2 px-2 py-1">
+                        <p className="text-dim">Packet Loss</p>
+                        <p className="mt-0.5 font-mono text-white">{Number(site.packetLossPercent ?? 0).toFixed(2)}%</p>
+                      </div>
+                      <div className="rounded-md bg-surface-2 px-2 py-1">
+                        <p className="text-dim">Monthly</p>
+                        <p className="mt-0.5 font-mono text-white">
+                          {siteCommercial ? INR(Number(siteCommercial.monthlyRecurringAmount ?? 0)) : '--'}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-surface-2 px-2 py-1">
+                        <p className="text-dim">Outstanding</p>
+                        <p className="mt-0.5 font-mono text-white">
+                          {siteCommercial ? INR(Number(siteCommercial.estimatedOutstandingAmount ?? 0)) : '--'}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })
+            )}
+          </div>
+        </div>
+
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">My Sites</h3>
-            <a href="/portal/sites" className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>All sites →</a>
+            <Link to="/portal/sites" className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>All sites →</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -280,7 +372,7 @@ export function CustomerDashboard() {
                         {site.total_bandwidth_mbps ?? site.bandwidth_mbps ?? '--'} Mbps
                       </td>
                       <td className="table-td text-right">
-                        <a href={`/portal/sites/${site.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>View</a>
+                        <Link to={`/portal/sites/${site.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>View</Link>
                       </td>
                     </tr>
                   ))
@@ -293,7 +385,7 @@ export function CustomerDashboard() {
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Open Tickets</h3>
-            <a href="/portal/tickets" className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>All tickets →</a>
+            <Link to="/portal/tickets" className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>All tickets →</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -321,7 +413,7 @@ export function CustomerDashboard() {
                         <span className="font-mono text-[10px]" style={{ color: 'var(--status-offline)' }}>{ticket.priority}</span>
                       </td>
                       <td className="table-td text-right">
-                        <a href={`/portal/tickets/${ticket.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>Open</a>
+                        <Link to={`/portal/tickets/${ticket.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>Open</Link>
                       </td>
                     </tr>
                   ))

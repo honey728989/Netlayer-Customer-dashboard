@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Globe, Search } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
-import { sitesApi } from '@netlayer/api'
+import { customersApi, sitesApi } from '@netlayer/api'
 import { CustomerSiteFilterBar } from '@/components/portal/CustomerSiteFilterBar'
 import { applySiteFilters } from '@/lib/customerSiteFilters'
 import { useCustomerPortalSiteFilterStore } from '@/store'
@@ -49,6 +49,12 @@ export function CustomerSites() {
     enabled: Boolean(customerId),
     staleTime: 30_000,
   })
+  const { data: siteBilling = [] } = useQuery({
+    queryKey: ['customers', customerId, 'site-billing'],
+    queryFn: () => customersApi.getSiteBilling(customerId),
+    enabled: Boolean(customerId),
+    staleTime: 60_000,
+  })
 
   const siteList = (Array.isArray(raw) ? raw : (raw as any)?.data ?? []) as Site[]
   const filteredByPortal = applySiteFilters(siteList, { selectedSiteId, city, status, serviceType })
@@ -67,6 +73,15 @@ export function CustomerSites() {
     return current === 'DOWN' || current === 'OFFLINE' || current === 'DEGRADED'
   }).length
   const scopeLabel = selectedSiteId ? 'Selected site focus' : city ? `${city} sites` : 'Full site portfolio'
+  const billingMap = new Map(siteBilling.map((item) => [item.siteId, item]))
+  const spotlightSites = [...filtered]
+    .sort((left, right) => {
+      const leftHealth = ['DOWN', 'OFFLINE', 'DEGRADED'].includes((left.status ?? '').toUpperCase()) ? 0 : 1
+      const rightHealth = ['DOWN', 'OFFLINE', 'DEGRADED'].includes((right.status ?? '').toUpperCase()) ? 0 : 1
+      if (leftHealth !== rightHealth) return leftHealth - rightHealth
+      return Number(right.latencyMs ?? 0) - Number(left.latencyMs ?? 0)
+    })
+    .slice(0, 4)
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -134,6 +149,58 @@ export function CustomerSites() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {spotlightSites.length === 0 ? (
+          <div className="rounded-xl border px-4 py-5 text-sm md:col-span-2 xl:col-span-4" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+            No sites available for the current scope.
+          </div>
+        ) : (
+          spotlightSites.map((site) => {
+            const siteCommercial = billingMap.get(site.id)
+
+            return (
+              <Link
+                key={site.id}
+                to={`/portal/sites/${site.id}`}
+                onClick={() => setSelectedSite(site.id, site.name)}
+                className="rounded-xl border p-3 transition-colors hover:bg-surface-2"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-surface-2)' }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{site.name}</p>
+                  <SiteStatusDot status={site.status} />
+                </div>
+                <p className="mt-1 font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                  {site.code ?? 'No code'} · {[site.city, site.state].filter(Boolean).join(', ') || 'No location'}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+                  <div className="rounded-md bg-surface-3 px-2 py-1">
+                    <p className="text-dim">Bandwidth</p>
+                    <p className="mt-0.5 font-mono text-white">{site.total_bandwidth_mbps ?? site.bandwidth_mbps ?? site.bandwidthMbps ?? '--'} Mbps</p>
+                  </div>
+                  <div className="rounded-md bg-surface-3 px-2 py-1">
+                    <p className="text-dim">Latency</p>
+                    <p className="mt-0.5 font-mono text-white">{Number(site.latencyMs ?? 0).toFixed(1)} ms</p>
+                  </div>
+                  <div className="rounded-md bg-surface-3 px-2 py-1">
+                    <p className="text-dim">Recurring</p>
+                    <p className="mt-0.5 font-mono text-white">
+                      {siteCommercial ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(siteCommercial.monthlyRecurringAmount ?? 0)) : '--'}
+                    </p>
+                  </div>
+                  <div className="rounded-md bg-surface-3 px-2 py-1">
+                    <p className="text-dim">Outstanding</p>
+                    <p className="mt-0.5 font-mono text-white">
+                      {siteCommercial ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(siteCommercial.estimatedOutstandingAmount ?? 0)) : '--'}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            )
+          })
+        )}
       </div>
 
       <div className="card overflow-hidden">
