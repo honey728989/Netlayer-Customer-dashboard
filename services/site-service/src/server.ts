@@ -12,6 +12,29 @@ const routes: FastifyPluginAsync = async (app) => {
           (user.customerId === customerId &&
             user.roles?.some((role: string) => role === "ENTERPRISE_ADMIN" || role === "SUPER_ADMIN")))
     );
+  const resolveScopedSiteIds = async (user: any, customerId: string): Promise<string[] | null> => {
+    if (!user?.customerId || user.customerId !== customerId) {
+      return null;
+    }
+
+    if (user.roles?.some((role: string) => role === "ENTERPRISE_ADMIN" || role === "SUPER_ADMIN")) {
+      return null;
+    }
+
+    const scoped = await query<{ site_id: string }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT cusa.site_id
+        FROM customer_user_site_access cusa
+        JOIN sites s ON s.id = cusa.site_id
+        WHERE cusa.user_id = $1
+          AND s.customer_id = $2
+      `,
+      [user.userId, customerId]
+    );
+
+    return scoped.rows.length > 0 ? scoped.rows.map((row) => row.site_id) : null;
+  };
   // ─── Dashboard / Stats ──────────────────────────────────────────────────────
 
   app.get("/sites/stats", { preHandler: [requireAuth] }, async (request) => {
@@ -177,6 +200,9 @@ const routes: FastifyPluginAsync = async (app) => {
     if (user.customerId && user.customerId !== params.id) {
       return reply.code(403).send({ message: "Forbidden" });
     }
+    const scopedSiteIds = await resolveScopedSiteIds(user, params.id);
+    const servicesParams = scopedSiteIds ? [params.id, scopedSiteIds] : [params.id];
+    const ticketsParams = scopedSiteIds ? [params.id, scopedSiteIds] : [params.id];
 
     const [customerResult, servicesResult, ticketResult, feasibilityResult] = await Promise.all([
       query<{
@@ -195,16 +221,18 @@ const routes: FastifyPluginAsync = async (app) => {
         `SELECT COUNT(*)::text AS total_services,
           COUNT(*) FILTER (WHERE status = 'ACTIVE')::text AS active_services,
           COALESCE(SUM(bandwidth_mbps), 0)::text AS total_bandwidth_mbps
-         FROM services WHERE customer_id = $1`,
-        [params.id]
+         FROM services WHERE customer_id = $1
+         ${scopedSiteIds ? "AND site_id = ANY($2::uuid[])" : ""}`,
+        servicesParams
       ),
       query<{ open_tickets: string; breached_tickets: string; }>(
         process.env.DATABASE_URL!,
         `SELECT
           COUNT(*) FILTER (WHERE status IN ('OPEN','IN_PROGRESS'))::text AS open_tickets,
           COUNT(*) FILTER (WHERE status IN ('OPEN','IN_PROGRESS') AND resolution_due_at IS NOT NULL AND resolution_due_at <= NOW())::text AS breached_tickets
-         FROM tickets WHERE customer_id = $1`,
-        [params.id]
+         FROM tickets WHERE customer_id = $1
+         ${scopedSiteIds ? "AND (site_id IS NULL OR site_id = ANY($2::uuid[]))" : ""}`,
+        ticketsParams
       ),
       query<{ open_feasibility: string; }>(
         process.env.DATABASE_URL!,
@@ -241,6 +269,7 @@ const routes: FastifyPluginAsync = async (app) => {
     if (user.customerId && user.customerId !== params.id) {
       return reply.code(403).send({ message: "Forbidden" });
     }
+    const scopedSiteIds = await resolveScopedSiteIds(user, params.id);
 
     const result = await query<{
       site_id: string; site_name: string; city: string | null; state: string | null;
@@ -269,10 +298,11 @@ const routes: FastifyPluginAsync = async (app) => {
         LEFT JOIN alerts a ON a.site_id = s.id
         LEFT JOIN latest_metrics lm ON lm.site_id = s.id
         WHERE s.customer_id = $1
+          ${scopedSiteIds ? "AND s.id = ANY($2::uuid[])" : ""}
         GROUP BY s.id, lm.latency_ms, lm.packet_loss_pct
         ORDER BY s.name
       `,
-      [params.id]
+      scopedSiteIds ? [params.id, scopedSiteIds] : [params.id]
     );
 
     return result.rows.map((row) => ({
@@ -294,6 +324,7 @@ const routes: FastifyPluginAsync = async (app) => {
     if (user.customerId && user.customerId !== params.id) {
       return reply.code(403).send({ message: "Forbidden" });
     }
+    const scopedSiteIds = await resolveScopedSiteIds(user, params.id);
 
     const result = await query(
       process.env.DATABASE_URL!,
@@ -302,9 +333,10 @@ const routes: FastifyPluginAsync = async (app) => {
         FROM services sv
         JOIN sites s ON s.id = sv.site_id
         WHERE sv.customer_id = $1
+          ${scopedSiteIds ? "AND sv.site_id = ANY($2::uuid[])" : ""}
         ORDER BY s.name, sv.service_id
       `,
-      [params.id]
+      scopedSiteIds ? [params.id, scopedSiteIds] : [params.id]
     );
 
     return result.rows;
@@ -1234,6 +1266,7 @@ const routes: FastifyPluginAsync = async (app) => {
     if (user.customerId && user.customerId !== params.id) {
       return reply.code(403).send({ message: "Forbidden" });
     }
+    const scopedSiteIds = await resolveScopedSiteIds(user, params.id);
 
     const queryParams = request.query as { month?: string };
     const selectedMonth = queryParams.month ?? new Date().toISOString().slice(0, 7);
@@ -1250,7 +1283,7 @@ const routes: FastifyPluginAsync = async (app) => {
           FROM customers
           WHERE id = $1
         `,
-        [params.id]
+        scopedSiteIds ? [params.id, scopedSiteIds] : [params.id]
       ),
       query<{
         site_id: string;
@@ -1281,6 +1314,7 @@ const routes: FastifyPluginAsync = async (app) => {
               COUNT(*) FILTER (WHERE t.status IN ('OPEN', 'IN_PROGRESS'))::int AS open_incidents
             FROM tickets t
             WHERE t.customer_id = $1
+              ${scopedSiteIds ? "AND (t.site_id IS NULL OR t.site_id = ANY($2::uuid[]))" : ""}
             GROUP BY t.site_id
           )
           SELECT
@@ -1308,10 +1342,11 @@ const routes: FastifyPluginAsync = async (app) => {
           LEFT JOIN latest_metrics lm ON lm.site_id = s.id
           LEFT JOIN ticket_counts tc ON tc.site_id = s.id
           WHERE s.customer_id = $1
+            ${scopedSiteIds ? "AND s.id = ANY($2::uuid[])" : ""}
           GROUP BY s.id, tc.open_incidents, lm.latency_ms, lm.packet_loss_pct
           ORDER BY s.name
         `,
-        [params.id]
+        scopedSiteIds ? [params.id, scopedSiteIds] : [params.id]
       ),
       query<{
         open_incidents: string;
@@ -1333,8 +1368,9 @@ const routes: FastifyPluginAsync = async (app) => {
             )::text AS breached_tickets
           FROM tickets
           WHERE customer_id = $1
+            ${scopedSiteIds ? "AND (site_id IS NULL OR site_id = ANY($3::uuid[]))" : ""}
         `,
-        [params.id, selectedMonth]
+        scopedSiteIds ? [params.id, selectedMonth, scopedSiteIds] : [params.id, selectedMonth]
       ),
       query<{
         avg_latency_ms: string | null;
@@ -1352,9 +1388,10 @@ const routes: FastifyPluginAsync = async (app) => {
           FROM site_traffic_metrics stm
           JOIN sites s ON s.id = stm.site_id
           WHERE s.customer_id = $1
+            ${scopedSiteIds ? "AND s.id = ANY($3::uuid[])" : ""}
             AND TO_CHAR(stm.metric_time AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM') = $2
         `,
-        [params.id, selectedMonth]
+        scopedSiteIds ? [params.id, selectedMonth, scopedSiteIds] : [params.id, selectedMonth]
       )
     ]);
 
@@ -1449,8 +1486,10 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/sites", { preHandler: [requireAuth] }, async (request) => {
     const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user, user.customerId) : null;
     const customerFilter = user.customerId ? "WHERE s.customer_id = $1" : "";
-    const params = user.customerId ? [user.customerId] : [];
+    const scopedFilter = scopedSiteIds ? `${customerFilter ? "AND" : "WHERE"} s.id = ANY($2::uuid[])` : "";
+    const params = user.customerId ? (scopedSiteIds ? [user.customerId, scopedSiteIds] : [user.customerId]) : [];
 
     const result = await query(
       process.env.DATABASE_URL!,
@@ -1469,6 +1508,7 @@ const routes: FastifyPluginAsync = async (app) => {
         LEFT JOIN devices d ON d.site_id = s.id
         LEFT JOIN services sv ON sv.site_id = s.id
         ${customerFilter}
+        ${scopedFilter}
         GROUP BY s.id, c.name
         ORDER BY s.name
       `,
@@ -1480,6 +1520,8 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/sites/:id", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user, user.customerId) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -1502,9 +1544,13 @@ const routes: FastifyPluginAsync = async (app) => {
         JOIN customers c ON c.id = s.customer_id
         LEFT JOIN devices d ON d.site_id = s.id
         WHERE s.id = $1
+          ${user.customerId ? "AND s.customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND s.id = ANY($${user.customerId ? 3 : 2}::uuid[])` : ""}
         GROUP BY s.id, c.name
       `,
-      [params.id]
+      user.customerId
+        ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId])
+        : [params.id]
     );
 
     if (!result.rows[0]) {
@@ -1516,16 +1562,23 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/sites/:id/traffic", { preHandler: [requireAuth] }, async (request) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user, user.customerId) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
         SELECT metric_time, inbound_bps, outbound_bps, latency_ms, packet_loss_pct
-        FROM site_traffic_metrics
-        WHERE site_id = $1
+        FROM site_traffic_metrics stm
+        JOIN sites s ON s.id = stm.site_id
+        WHERE stm.site_id = $1
+          ${user.customerId ? "AND s.customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND s.id = ANY($${user.customerId ? 3 : 2}::uuid[])` : ""}
         ORDER BY metric_time DESC
         LIMIT 288
       `,
-      [params.id]
+      user.customerId
+        ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId])
+        : [params.id]
     );
 
     return result.rows;
@@ -1533,6 +1586,8 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/sites/:id/services", { preHandler: [requireAuth] }, async (request) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user, user.customerId) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -1541,11 +1596,16 @@ const routes: FastifyPluginAsync = async (app) => {
           pop, last_mile, ip_block, static_ip::text,
           status, activation_date, contract_end_date, contract_months,
           monthly_charge, notes, metadata
-        FROM services
-        WHERE site_id = $1
+        FROM services sv
+        JOIN sites s ON s.id = sv.site_id
+        WHERE sv.site_id = $1
+          ${user.customerId ? "AND s.customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND s.id = ANY($${user.customerId ? 3 : 2}::uuid[])` : ""}
         ORDER BY service_id
       `,
-      [params.id]
+      user.customerId
+        ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId])
+        : [params.id]
     );
 
     return result.rows;
@@ -1553,6 +1613,8 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/sites/:id/devices", { preHandler: [requireAuth] }, async (request) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user, user.customerId) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -1566,11 +1628,16 @@ const routes: FastifyPluginAsync = async (app) => {
           device_type AS type,
           last_seen_at,
           created_at
-        FROM devices
-        WHERE site_id = $1
+        FROM devices d
+        JOIN sites s ON s.id = d.site_id
+        WHERE d.site_id = $1
+          ${user.customerId ? "AND s.customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND s.id = ANY($${user.customerId ? 3 : 2}::uuid[])` : ""}
         ORDER BY hostname
       `,
-      [params.id]
+      user.customerId
+        ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId])
+        : [params.id]
     );
 
     return result.rows;
@@ -1578,6 +1645,8 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/sites/:id/events", { preHandler: [requireAuth] }, async (request) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user, user.customerId) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -1592,11 +1661,16 @@ const routes: FastifyPluginAsync = async (app) => {
           a.message,
           a.source
         FROM alerts a
+        JOIN sites s ON s.id = a.site_id
         WHERE a.site_id = $1
+          ${user.customerId ? "AND s.customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND s.id = ANY($${user.customerId ? 3 : 2}::uuid[])` : ""}
         ORDER BY a.created_at DESC
         LIMIT 20
       `,
-      [params.id]
+      user.customerId
+        ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId])
+        : [params.id]
     );
 
     return {

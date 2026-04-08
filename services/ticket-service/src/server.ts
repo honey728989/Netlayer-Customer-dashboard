@@ -13,9 +13,33 @@ function computeDueAt(priority: string, responseMinutes: number, resolutionMinut
 
 const routes: FastifyPluginAsync = async (app) => {
   const eventBus = new EventBus(process.env.REDIS_URL!);
+  const resolveScopedSiteIds = async (user: any): Promise<string[] | null> => {
+    if (!user?.customerId) {
+      return null;
+    }
+
+    if (user.roles?.some((role: string) => role === "ENTERPRISE_ADMIN" || role === "SUPER_ADMIN")) {
+      return null;
+    }
+
+    const scoped = await query<{ site_id: string }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT cusa.site_id
+        FROM customer_user_site_access cusa
+        JOIN sites s ON s.id = cusa.site_id
+        WHERE cusa.user_id = $1
+          AND s.customer_id = $2
+      `,
+      [user.userId, user.customerId]
+    );
+
+    return scoped.rows.length > 0 ? scoped.rows.map((row) => row.site_id) : null;
+  };
 
   app.get("/tickets/sla-stats", { preHandler: [requireAuth] }, async (request) => {
     const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user) : null;
     const result = await query<{
       open: string;
       in_progress: string;
@@ -45,8 +69,9 @@ const routes: FastifyPluginAsync = async (app) => {
           )::text AS resolved_today
         FROM tickets t
         ${user.customerId ? "WHERE t.customer_id = $1" : ""}
+        ${scopedSiteIds ? "AND (t.site_id IS NULL OR t.site_id = ANY($2::uuid[]))" : ""}
       `,
-      user.customerId ? [user.customerId] : []
+      user.customerId ? (scopedSiteIds ? [user.customerId, scopedSiteIds] : [user.customerId]) : []
     );
 
     const row = result.rows[0];
@@ -61,6 +86,7 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/tickets", { preHandler: [requireAuth] }, async (request) => {
     const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -72,9 +98,10 @@ const routes: FastifyPluginAsync = async (app) => {
         JOIN customers c ON c.id = t.customer_id
         LEFT JOIN sites s ON s.id = t.site_id
         ${user.customerId ? "WHERE t.customer_id = $1" : ""}
+        ${scopedSiteIds ? "AND (t.site_id IS NULL OR t.site_id = ANY($2::uuid[]))" : ""}
         ORDER BY t.created_at DESC
       `,
-      user.customerId ? [user.customerId] : []
+      user.customerId ? (scopedSiteIds ? [user.customerId, scopedSiteIds] : [user.customerId]) : []
     );
 
     return result.rows;
@@ -83,6 +110,7 @@ const routes: FastifyPluginAsync = async (app) => {
   app.get("/tickets/:id", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user) : null;
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -95,9 +123,10 @@ const routes: FastifyPluginAsync = async (app) => {
         LEFT JOIN sites s ON s.id = t.site_id
         WHERE t.id = $1
           ${user.customerId ? "AND t.customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND (t.site_id IS NULL OR t.site_id = ANY($${user.customerId ? 3 : 2}::uuid[]))` : ""}
         LIMIT 1
       `,
-      user.customerId ? [params.id, user.customerId] : [params.id]
+      user.customerId ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId]) : [params.id]
     );
 
     if (!result.rows[0]) {
@@ -132,6 +161,7 @@ const routes: FastifyPluginAsync = async (app) => {
   app.get("/tickets/:id/comments", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user) : null;
     const ticket = await query<{ id: string }>(
       process.env.DATABASE_URL!,
       `
@@ -139,8 +169,9 @@ const routes: FastifyPluginAsync = async (app) => {
         FROM tickets
         WHERE id = $1
           ${user.customerId ? "AND customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND (site_id IS NULL OR site_id = ANY($${user.customerId ? 3 : 2}::uuid[]))` : ""}
       `,
-      user.customerId ? [params.id, user.customerId] : [params.id]
+      user.customerId ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId]) : [params.id]
     );
 
     if (!ticket.rows[0]) {
@@ -170,6 +201,7 @@ const routes: FastifyPluginAsync = async (app) => {
   });
 
   app.post("/tickets", { preHandler: [requireAuth] }, async (request, reply) => {
+    const user = request.auth!;
     const body = request.body as {
       customerId: string;
       siteId?: string;
@@ -195,6 +227,15 @@ const routes: FastifyPluginAsync = async (app) => {
 
     if (!customer.rows[0]) {
       return reply.code(400).send({ message: "Invalid customer" });
+    }
+
+    if (user.customerId && user.customerId !== body.customerId) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user) : null;
+    if (body.siteId && scopedSiteIds && !scopedSiteIds.includes(body.siteId)) {
+      return reply.code(403).send({ message: "Site is outside your allowed customer scope" });
     }
 
     const sla = computeDueAt(
@@ -230,7 +271,7 @@ const routes: FastifyPluginAsync = async (app) => {
         body.description,
         body.priority,
         body.source ?? "PORTAL",
-        request.auth!.userId,
+        user.userId,
         sla.responseDueAt,
         sla.resolutionDueAt
       ]
@@ -284,6 +325,7 @@ const routes: FastifyPluginAsync = async (app) => {
   app.post("/tickets/:id/comments", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;
+    const scopedSiteIds = user.customerId ? await resolveScopedSiteIds(user) : null;
     const body = request.body as {
       body: string;
       isInternal?: boolean;
@@ -296,8 +338,9 @@ const routes: FastifyPluginAsync = async (app) => {
         FROM tickets
         WHERE id = $1
           ${user.customerId ? "AND customer_id = $2" : ""}
+          ${scopedSiteIds ? `AND (site_id IS NULL OR site_id = ANY($${user.customerId ? 3 : 2}::uuid[]))` : ""}
       `,
-      user.customerId ? [params.id, user.customerId] : [params.id]
+      user.customerId ? (scopedSiteIds ? [params.id, user.customerId, scopedSiteIds] : [params.id, user.customerId]) : [params.id]
     );
 
     if (!ticket.rows[0]) {
