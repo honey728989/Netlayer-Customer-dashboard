@@ -2,14 +2,17 @@ import { useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
+  customersApi,
   sitesApi,
   ticketsApi,
   type Service,
+  type SiteBillingSummary,
   type SiteDevice,
   type SiteEvent,
   type SiteTraffic,
   type Ticket,
 } from '@netlayer/api'
+import { useAuthStore } from '@netlayer/auth'
 import { useCustomerPortalSiteFilterStore } from '@/store'
 import { Card, PageHeader } from '@netlayer/ui'
 
@@ -20,6 +23,8 @@ function formatDate(value?: string) {
 
 export function CustomerSiteDetailPage() {
   const { siteId = '' } = useParams()
+  const { user } = useAuthStore()
+  const customerId = user?.customerId ?? user?.organizationId ?? ''
   const { setSelectedSite } = useCustomerPortalSiteFilterStore()
 
   const { data: site, isLoading: siteLoading } = useQuery({
@@ -73,6 +78,12 @@ export function CustomerSiteDetailPage() {
     enabled: Boolean(siteId),
     staleTime: 30_000,
   })
+  const { data: siteBilling = [] } = useQuery({
+    queryKey: ['customers', customerId, 'site-billing'],
+    queryFn: () => customersApi.getSiteBilling(customerId),
+    enabled: Boolean(customerId),
+    staleTime: 60_000,
+  })
 
   const latestTraffic = useMemo(() => {
     if (!traffic.length) return null
@@ -83,6 +94,10 @@ export function CustomerSiteDetailPage() {
   const siteServices = services as Service[]
   const siteTickets = ((ticketsResponse?.data ?? []) as Ticket[]).filter(
     (ticket) => (ticket.site_id ?? ticket.siteId) === siteId,
+  )
+  const commercialSummary = useMemo(
+    () => ((siteBilling as SiteBillingSummary[]).find((entry) => entry.siteId === siteId) ?? null),
+    [siteBilling, siteId],
   )
   const monthlyCharge = siteServices.reduce((sum, service) => sum + Number(service.monthly_charge ?? 0), 0)
   const activeServices = siteServices.filter((service) => (service.status ?? '').toUpperCase() === 'ACTIVE').length
@@ -135,21 +150,48 @@ export function CustomerSiteDetailPage() {
           )}
         </Card>
 
-        <Card title="Performance Snapshot">
-          <div className="space-y-3">
-            {[
-              ['Inbound', `${Number(latestTraffic?.inboundMbps ?? 0).toFixed(1)} Mbps`],
-              ['Outbound', `${Number(latestTraffic?.outboundMbps ?? 0).toFixed(1)} Mbps`],
-              ['Latency', `${Number(latestTraffic?.latency_ms ?? site?.latencyMs ?? 0).toFixed(1)} ms`],
-              ['Packet Loss', `${Number(latestTraffic?.packet_loss_pct ?? site?.packetLossPercent ?? 0).toFixed(2)}%`],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
-                <span className="font-mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</span>
+        <div className="space-y-5">
+          <Card title="Performance Snapshot">
+            <div className="space-y-3">
+              {[
+                ['Inbound', `${Number(latestTraffic?.inboundMbps ?? 0).toFixed(1)} Mbps`],
+                ['Outbound', `${Number(latestTraffic?.outboundMbps ?? 0).toFixed(1)} Mbps`],
+                ['Latency', `${Number(latestTraffic?.latency_ms ?? site?.latencyMs ?? 0).toFixed(1)} ms`],
+                ['Packet Loss', `${Number(latestTraffic?.packet_loss_pct ?? site?.packetLossPercent ?? 0).toFixed(2)}%`],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
+                  <span className="font-mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Commercial Summary">
+            {commercialSummary ? (
+              <div className="space-y-3">
+                {[
+                  ['Monthly Recurring', `Rs ${Number(commercialSummary.monthlyRecurringAmount ?? 0).toLocaleString('en-IN')}`],
+                  ['Outstanding Share', `Rs ${Number(commercialSummary.estimatedOutstandingAmount ?? 0).toLocaleString('en-IN')}`],
+                  ['Portfolio Share', `${Number(commercialSummary.portfolioSharePct ?? 0).toFixed(1)}%`],
+                  ['Contract End', formatDate(commercialSummary.contractEndDate ?? undefined)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
+                    <span className="font-mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</span>
+                  </div>
+                ))}
+                <Link to="/portal/billing" className="btn-ghost w-full justify-center">
+                  Open Billing Workspace
+                </Link>
               </div>
-            ))}
-          </div>
-        </Card>
+            ) : (
+              <div className="rounded-xl border px-4 py-5 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                Site-wise billing split abhi available nahi hai. Admin panel me billable services aur Zoho billing mapping complete karo.
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
 
       <Card title="Live Performance Graphs">

@@ -181,6 +181,9 @@ export const customersApi = {
   getSiteBilling: (id: string) =>
     http.get<SiteBillingSummary[]>(`/customers/${id}/site-billing`).then((r) => r.data),
 
+  syncBilling: (id: string) =>
+    http.post<{ synced: number }>(`/billing/customers/${id}/sync`).then((r) => r.data),
+
   getPortalUsers: (id: string) =>
     http.get<CustomerPortalUser[]>(`/customers/${id}/portal-users`).then((r) => Array.isArray(r.data) ? r.data : []),
 

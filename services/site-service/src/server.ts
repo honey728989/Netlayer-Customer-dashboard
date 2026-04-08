@@ -918,6 +918,7 @@ const routes: FastifyPluginAsync = async (app) => {
       id: string;
       name: string;
       code: string;
+      zoho_customer_id: string | null;
       status: string;
       tier: string;
       sla_profile: string;
@@ -937,6 +938,7 @@ const routes: FastifyPluginAsync = async (app) => {
           id,
           name,
           code,
+          zoho_customer_id,
           status,
           tier,
           sla_profile,
@@ -964,6 +966,7 @@ const routes: FastifyPluginAsync = async (app) => {
       id: row.id,
       name: row.name,
       code: row.code,
+      zohoCustomerId: row.zoho_customer_id,
       status: row.status,
       tier: row.tier,
       slaProfile: row.sla_profile,
@@ -992,6 +995,9 @@ const routes: FastifyPluginAsync = async (app) => {
       billingEmail?: string;
       primaryContactName?: string;
       primaryContactPhone?: string;
+      zohoCustomerId?: string;
+      monthlyRecurringRevenue?: number;
+      annualContractValue?: number;
     };
 
     const updated = await query(
@@ -1004,12 +1010,16 @@ const routes: FastifyPluginAsync = async (app) => {
           billing_email = COALESCE($4, billing_email),
           primary_contact_name = COALESCE($5, primary_contact_name),
           primary_contact_phone = COALESCE($6, primary_contact_phone),
+          zoho_customer_id = COALESCE($7, zoho_customer_id),
+          monthly_recurring_revenue = COALESCE($8, monthly_recurring_revenue),
+          annual_contract_value = COALESCE($9, annual_contract_value),
           updated_at = NOW()
         WHERE id = $1
         RETURNING
           id,
           name,
           code,
+          zoho_customer_id,
           status,
           tier,
           sla_profile,
@@ -1030,6 +1040,9 @@ const routes: FastifyPluginAsync = async (app) => {
         body.billingEmail?.trim() || null,
         body.primaryContactName?.trim() || null,
         body.primaryContactPhone?.trim() || null,
+        body.zohoCustomerId?.trim() || null,
+        typeof body.monthlyRecurringRevenue === "number" ? body.monthlyRecurringRevenue : null,
+        typeof body.annualContractValue === "number" ? body.annualContractValue : null,
       ]
     );
 
@@ -1040,12 +1053,14 @@ const routes: FastifyPluginAsync = async (app) => {
     const row = updated.rows[0] as any;
     await writeAuditLog(user.userId, "customer", params.id, "profile.updated", {
       name: row.name,
-      billingEmail: row.billing_email
+      billingEmail: row.billing_email,
+      zohoCustomerId: row.zoho_customer_id
     });
     return {
       id: row.id,
       name: row.name,
       code: row.code,
+      zohoCustomerId: row.zoho_customer_id,
       status: row.status,
       tier: row.tier,
       slaProfile: row.sla_profile,

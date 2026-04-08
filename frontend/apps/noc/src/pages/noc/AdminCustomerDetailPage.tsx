@@ -1,5 +1,6 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, CreditCard, FileText, Network, ShieldCheck, Ticket, Users } from 'lucide-react'
 import { customersApi, sitesApi, ticketsApi } from '@netlayer/api'
 
@@ -8,6 +9,8 @@ const INR = (value: number) =>
 
 export function AdminCustomerDetailPage() {
   const { customerId = '' } = useParams()
+  const queryClient = useQueryClient()
+  const [zohoCustomerId, setZohoCustomerId] = useState('')
 
   const { data: customer } = useQuery({
     queryKey: ['admin', 'customer', customerId],
@@ -18,6 +21,12 @@ export function AdminCustomerDetailPage() {
   const { data: overview } = useQuery({
     queryKey: ['admin', 'customer', customerId, 'overview'],
     queryFn: () => customersApi.getOverview(customerId),
+    enabled: Boolean(customerId),
+  })
+
+  const { data: profile } = useQuery({
+    queryKey: ['admin', 'customer', customerId, 'profile'],
+    queryFn: () => customersApi.getProfile(customerId),
     enabled: Boolean(customerId),
   })
 
@@ -45,6 +54,12 @@ export function AdminCustomerDetailPage() {
     enabled: Boolean(customerId),
   })
 
+  const { data: siteBilling = [] } = useQuery({
+    queryKey: ['admin', 'customer', customerId, 'site-billing'],
+    queryFn: () => customersApi.getSiteBilling(customerId),
+    enabled: Boolean(customerId),
+  })
+
   const { data: users = [] } = useQuery({
     queryKey: ['admin', 'customer', customerId, 'portal-users'],
     queryFn: () => customersApi.getPortalUsers(customerId),
@@ -57,6 +72,40 @@ export function AdminCustomerDetailPage() {
   const billedAmount = Array.isArray(billing)
     ? billing.reduce((sum, invoice) => sum + Number(invoice.total_amount ?? invoice.amount ?? 0), 0)
     : 0
+  const topCommercialSites = useMemo(
+    () =>
+      [...siteBilling]
+        .sort((left, right) => Number(right.monthlyRecurringAmount ?? 0) - Number(left.monthlyRecurringAmount ?? 0))
+        .slice(0, 4),
+    [siteBilling],
+  )
+
+  useEffect(() => {
+    setZohoCustomerId(profile?.zohoCustomerId ?? customer?.zohoCustomerId ?? customer?.zoho_customer_id ?? '')
+  }, [customer?.zohoCustomerId, customer?.zoho_customer_id, profile?.zohoCustomerId])
+
+  const billingProfileMutation = useMutation({
+    mutationFn: () =>
+      customersApi.updateProfile(customerId, {
+        zohoCustomerId: zohoCustomerId.trim(),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin', 'customer', customerId] }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'customer', customerId, 'profile'] }),
+      ])
+    },
+  })
+
+  const billingSyncMutation = useMutation({
+    mutationFn: () => customersApi.syncBilling(customerId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin', 'customer', customerId, 'billing'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'customer', customerId, 'site-billing'] }),
+      ])
+    },
+  })
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -175,6 +224,56 @@ export function AdminCustomerDetailPage() {
 
           <div className="card p-4">
             <div className="mb-4 flex items-center gap-2">
+              <CreditCard size={14} className="text-brand" />
+              <h2 className="font-display text-sm font-semibold">Billing Mapping</h2>
+            </div>
+            <div className="space-y-3 text-xs">
+              <label className="block">
+                <span className="text-[10px] uppercase tracking-widest text-dim">Zoho Customer ID</span>
+                <input
+                  value={zohoCustomerId}
+                  onChange={(event) => setZohoCustomerId(event.target.value)}
+                  className="input-field mt-1"
+                  placeholder="Enter Zoho Books customer ID"
+                />
+              </label>
+              <div className="grid gap-2 rounded-lg border border-border bg-surface-2 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-dim">Mapped Status</span>
+                  <span className="font-mono text-white">{zohoCustomerId.trim() ? 'READY' : 'PENDING'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-dim">Invoices in DB</span>
+                  <span className="font-mono text-white">{Array.isArray(billing) ? billing.length : 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-dim">Recurring Portfolio</span>
+                  <span className="font-mono text-white">{INR(topCommercialSites.reduce((sum, site) => sum + Number(site.monthlyRecurringAmount ?? 0), 0))}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-ghost flex-1"
+                  disabled={billingProfileMutation.isPending}
+                  onClick={() => billingProfileMutation.mutate()}
+                >
+                  {billingProfileMutation.isPending ? 'Saving...' : 'Save Billing Mapping'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary flex-1"
+                  disabled={billingSyncMutation.isPending || !zohoCustomerId.trim()}
+                  onClick={() => billingSyncMutation.mutate()}
+                >
+                  {billingSyncMutation.isPending ? 'Syncing...' : 'Sync Zoho Billing'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="mb-4 flex items-center gap-2">
               <FileText size={14} className="text-brand" />
               <h2 className="font-display text-sm font-semibold">Operational Queue</h2>
             </div>
@@ -188,6 +287,31 @@ export function AdminCustomerDetailPage() {
                 </div>
               ))}
               {openTickets.length === 0 ? <p className="text-dim">No open escalations</p> : null}
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Building2 size={14} className="text-brand" />
+              <h2 className="font-display text-sm font-semibold">Top Commercial Sites</h2>
+            </div>
+            <div className="space-y-2 text-xs">
+              {topCommercialSites.map((site) => (
+                <Link
+                  key={site.siteId}
+                  to={`/noc/sites/${site.siteId}`}
+                  className="block rounded-lg border border-border bg-surface-2 px-3 py-2 hover:bg-surface-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium text-white">{site.siteName}</p>
+                    <span className="font-mono text-dim">{INR(Number(site.monthlyRecurringAmount ?? 0))}</span>
+                  </div>
+                  <p className="mt-1 font-mono text-[10px] text-dim">
+                    {site.serviceCount} services · {site.totalBandwidthMbps} Mbps · {site.portfolioSharePct.toFixed(1)}% share
+                  </p>
+                </Link>
+              ))}
+              {topCommercialSites.length === 0 ? <p className="text-dim">No billable services mapped yet</p> : null}
             </div>
           </div>
         </div>

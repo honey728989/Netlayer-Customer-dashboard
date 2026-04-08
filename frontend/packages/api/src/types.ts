@@ -242,6 +242,8 @@ export interface Customer {
   id: string
   name: string
   code?: string
+  zoho_customer_id?: string
+  zohoCustomerId?: string
   gstin?: string
   email?: string
   phone?: string
@@ -285,6 +287,7 @@ export interface CustomerProfile {
   id: string
   name: string
   code?: string
+  zohoCustomerId?: string | null
   status: string
   tier?: string
   slaProfile?: string
@@ -300,11 +303,14 @@ export interface CustomerProfile {
 }
 
 export interface CustomerProfilePayload {
-  name: string
+  name?: string
   industry?: string
   billingEmail?: string
   primaryContactName?: string
   primaryContactPhone?: string
+  zohoCustomerId?: string
+  monthlyRecurringRevenue?: number
+  annualContractValue?: number
 }
 
 export interface CustomerContactPayload {
