@@ -1,5 +1,11 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_URL?: string
+  }
+}
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 class HttpClient {
