@@ -405,6 +405,158 @@ const routes: FastifyPluginAsync = async (app) => {
     };
   });
 
+  app.post("/customers/:id/sites", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      code?: string;
+      name?: string;
+      region?: string;
+      city?: string;
+      state?: string;
+      address?: string;
+      status?: string;
+      ipBlock?: string;
+      pop?: string;
+      lastMileProvider?: string;
+      dashboardUid?: string;
+      goLiveDate?: string;
+      contractEndDate?: string;
+    };
+
+    if (!body.name || !body.region || !body.address) {
+      return reply.code(400).send({ message: "name, region, and address are required" });
+    }
+
+    const customer = await query<{ id: string; code: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id, code FROM customers WHERE id = $1`,
+      [params.id]
+    );
+
+    if (!customer.rows[0]) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const siteCode =
+      body.code?.trim().toUpperCase() ||
+      `${customer.rows[0].code}-SITE-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+    const existingSite = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id FROM sites WHERE code = $1`,
+      [siteCode]
+    );
+
+    if (existingSite.rows[0]) {
+      return reply.code(409).send({ message: "Site code already exists" });
+    }
+
+    const insertedSite = await query<{
+      id: string;
+      customer_id: string;
+      code: string;
+      name: string;
+      region: string;
+      status: string;
+      address: string;
+      city: string | null;
+      state: string | null;
+      ip_block: string | null;
+      pop: string | null;
+      last_mile_provider: string | null;
+      dashboard_uid: string | null;
+      go_live_date: string | null;
+      contract_end_date: string | null;
+      created_at: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO sites (
+          customer_id,
+          code,
+          name,
+          region,
+          status,
+          address,
+          city,
+          state,
+          ip_block,
+          pop,
+          last_mile_provider,
+          dashboard_uid,
+          go_live_date,
+          contract_end_date
+        )
+        VALUES ($1, $2, $3, $4, COALESCE($5, 'UP'), $6, $7, $8, $9, $10, $11, $12, $13::date, $14::date)
+        RETURNING
+          id,
+          customer_id,
+          code,
+          name,
+          region,
+          status,
+          address,
+          city,
+          state,
+          ip_block,
+          pop,
+          last_mile_provider,
+          dashboard_uid,
+          go_live_date::text,
+          contract_end_date::text,
+          created_at::text
+      `,
+      [
+        params.id,
+        siteCode,
+        body.name.trim(),
+        body.region.trim(),
+        body.status?.trim().toUpperCase() || "UP",
+        body.address.trim(),
+        body.city?.trim() || null,
+        body.state?.trim() || null,
+        body.ipBlock?.trim() || null,
+        body.pop?.trim() || null,
+        body.lastMileProvider?.trim() || null,
+        body.dashboardUid?.trim() || null,
+        body.goLiveDate?.trim() || null,
+        body.contractEndDate?.trim() || null
+      ]
+    );
+
+    const row = insertedSite.rows[0];
+    await writeAuditLog(user.userId, "site", row.id, "site.created", {
+      customerId: params.id,
+      code: row.code,
+      dashboardUid: row.dashboard_uid
+    });
+
+    reply.code(201);
+    return {
+      id: row.id,
+      customer_id: row.customer_id,
+      code: row.code,
+      name: row.name,
+      region: row.region,
+      status: row.status,
+      address: row.address,
+      city: row.city,
+      state: row.state,
+      ip_block: row.ip_block,
+      pop: row.pop,
+      last_mile_provider: row.last_mile_provider,
+      dashboard_uid: row.dashboard_uid,
+      go_live_date: row.go_live_date,
+      contract_end_date: row.contract_end_date,
+      created_at: row.created_at
+    };
+  });
+
   app.get("/customers/:id", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;

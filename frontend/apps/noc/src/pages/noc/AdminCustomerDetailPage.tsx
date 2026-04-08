@@ -72,6 +72,7 @@ export function AdminCustomerDetailPage() {
         </div>
         <div className="flex gap-2">
           <Link to="/noc/customers" className="btn-ghost">Back to Customers</Link>
+          <Link to={`/noc/customers/${customerId}/sites/new`} className="btn-ghost">Add Site</Link>
           <Link to="/portal" className="btn-primary">Portal View</Link>
         </div>
       </div>
@@ -130,10 +131,10 @@ export function AdminCustomerDetailPage() {
                 <p className="text-[10px] uppercase tracking-widest text-dim">Top Sites</p>
                 <div className="mt-2 space-y-2 text-xs">
                   {sites.slice(0, 4).map((site) => (
-                    <div key={site.id} className="flex items-center justify-between">
+                    <Link key={site.id} to={`/noc/sites/${site.id}`} className="flex items-center justify-between hover:text-white">
                       <span>{site.name}</span>
                       <span className="font-mono text-dim">{site.city ?? 'NA'}</span>
-                    </div>
+                    </Link>
                   ))}
                   {sites.length === 0 ? <p className="text-dim">No sites mapped</p> : null}
                 </div>

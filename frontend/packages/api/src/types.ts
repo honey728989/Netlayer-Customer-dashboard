@@ -82,6 +82,22 @@ export interface Site {
   dashboard_uid?: string
 }
 
+export interface SiteCreatePayload {
+  code?: string
+  name: string
+  region: string
+  city?: string
+  state?: string
+  address: string
+  status?: string
+  ipBlock?: string
+  pop?: string
+  lastMileProvider?: string
+  dashboardUid?: string
+  goLiveDate?: string
+  contractEndDate?: string
+}
+
 export interface SiteTraffic {
   timestamp?: string
   metric_time?: string

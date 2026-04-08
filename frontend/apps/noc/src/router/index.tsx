@@ -10,6 +10,7 @@ import { PageLoader } from '@netlayer/ui'
 const DashboardPage  = lazy(() => import('@/pages/noc/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const SitesPage      = lazy(() => import('@/pages/noc/SitesPage').then(m => ({ default: m.SitesPage })))
 const AdminSiteDetailPage = lazy(() => import('@/pages/noc/AdminSiteDetailPage').then(m => ({ default: m.AdminSiteDetailPage })))
+const AdminSiteOnboardingPage = lazy(() => import('@/pages/noc/AdminSiteOnboardingPage').then(m => ({ default: m.AdminSiteOnboardingPage })))
 const TicketsPage    = lazy(() => import('@/pages/noc/TicketsPage').then(m => ({ default: m.TicketsPage })))
 const AdminTicketDetailPage = lazy(() => import('@/pages/noc/AdminTicketDetailPage').then(m => ({ default: m.AdminTicketDetailPage })))
 const AlertsPage     = lazy(() => import('@/pages/noc/AlertsPage').then(m => ({ default: m.AlertsPage })))
@@ -85,6 +86,7 @@ const router = createBrowserRouter([
               { path: 'customers',  element: <Lazy><CustomersPage /></Lazy> },
               { path: 'customers/new', element: <Lazy><AdminCustomerOnboardingPage /></Lazy> },
               { path: 'customers/:customerId', element: <Lazy><AdminCustomerDetailPage /></Lazy> },
+              { path: 'customers/:customerId/sites/new', element: <Lazy><AdminSiteOnboardingPage /></Lazy> },
               { path: 'partners',   element: <Lazy><PartnersPage /></Lazy> },
               { path: 'partners/:partnerId', element: <Lazy><AdminPartnerDetailPage /></Lazy> },
               { path: 'leads', element: <Lazy><AdminLeadsPage /></Lazy> },
