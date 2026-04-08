@@ -112,6 +112,11 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/customers/:id/ledger", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
     const customer = await query<{ id: string }>(
       process.env.DATABASE_URL!,
       `SELECT id FROM customers WHERE id = $1`,
@@ -166,6 +171,11 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/customers/:id/payments", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -178,6 +188,99 @@ const routes: FastifyPluginAsync = async (app) => {
     );
 
     return result.rows;
+  });
+
+  app.get("/customers/:id/site-billing", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const [siteBilling, totals] = await Promise.all([
+      query<{
+        site_id: string;
+        site_name: string;
+        city: string | null;
+        state: string | null;
+        status: string;
+        service_count: string;
+        total_bandwidth_mbps: string;
+        monthly_recurring_amount: string;
+        contract_end_date: string | null;
+      }>(
+        process.env.DATABASE_URL!,
+        `
+          SELECT
+            s.id AS site_id,
+            s.name AS site_name,
+            s.city,
+            s.state,
+            s.status,
+            COUNT(sv.id)::text AS service_count,
+            COALESCE(SUM(sv.bandwidth_mbps), 0)::text AS total_bandwidth_mbps,
+            COALESCE(SUM(sv.monthly_charge), 0)::text AS monthly_recurring_amount,
+            MAX(sv.contract_end_date)::text AS contract_end_date
+          FROM sites s
+          LEFT JOIN services sv ON sv.site_id = s.id
+          WHERE s.customer_id = $1
+          GROUP BY s.id
+          ORDER BY monthly_recurring_amount DESC, s.name
+        `,
+        [params.id]
+      ),
+      query<{
+        outstanding_amount: string;
+        total_monthly_amount: string;
+      }>(
+        process.env.DATABASE_URL!,
+        `
+          SELECT
+            COALESCE(
+              (
+                SELECT SUM((payload ->> 'balance')::numeric)
+                FROM billing_invoices
+                WHERE customer_id = $1
+              ),
+              0
+            )::text AS outstanding_amount,
+            COALESCE(
+              (
+                SELECT SUM(monthly_charge)
+                FROM services
+                WHERE customer_id = $1
+              ),
+              0
+            )::text AS total_monthly_amount
+        `,
+        [params.id]
+      )
+    ]);
+
+    const outstandingAmount = Number(totals.rows[0]?.outstanding_amount ?? 0);
+    const totalMonthlyAmount = Number(totals.rows[0]?.total_monthly_amount ?? 0);
+
+    return siteBilling.rows.map((row) => {
+      const monthlyRecurringAmount = Number(row.monthly_recurring_amount ?? 0);
+      const portfolioSharePct =
+        totalMonthlyAmount > 0 ? (monthlyRecurringAmount / totalMonthlyAmount) * 100 : 0;
+
+      return {
+        siteId: row.site_id,
+        siteName: row.site_name,
+        city: row.city,
+        state: row.state,
+        status: row.status,
+        serviceCount: Number(row.service_count ?? 0),
+        totalBandwidthMbps: Number(row.total_bandwidth_mbps ?? 0),
+        monthlyRecurringAmount,
+        contractEndDate: row.contract_end_date,
+        estimatedOutstandingAmount: Number(
+          (outstandingAmount * (portfolioSharePct / 100)).toFixed(2)
+        ),
+        portfolioSharePct: Number(portfolioSharePct.toFixed(1))
+      };
+    });
   });
 
   app.post("/customers/:id/payment-links", { preHandler: [requireAuth] }, async (request) => {

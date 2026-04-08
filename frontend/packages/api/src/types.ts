@@ -386,6 +386,20 @@ export interface BillingLedgerSummary {
   pendingPaymentLinks: number
 }
 
+export interface SiteBillingSummary {
+  siteId: string
+  siteName: string
+  city?: string
+  state?: string
+  status: string
+  serviceCount: number
+  totalBandwidthMbps: number
+  monthlyRecurringAmount: number
+  contractEndDate?: string | null
+  estimatedOutstandingAmount: number
+  portfolioSharePct: number
+}
+
 export interface PaymentRecord {
   id: string
   customer_id?: string

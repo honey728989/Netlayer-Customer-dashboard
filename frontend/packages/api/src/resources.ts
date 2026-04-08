@@ -8,6 +8,7 @@ import type {
   CustomerHeatmapPoint,
   BillingLedgerSummary,
   PaymentRecord,
+  SiteBillingSummary,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -141,6 +142,9 @@ export const customersApi = {
 
   getPayments: (id: string) =>
     http.get<PaymentRecord[]>(`/customers/${id}/payments`).then((r) => r.data),
+
+  getSiteBilling: (id: string) =>
+    http.get<SiteBillingSummary[]>(`/customers/${id}/site-billing`).then((r) => r.data),
 
   createPaymentLink: (id: string, payload: { amount: number; invoiceId?: string; description?: string }) =>
     http.post<PaymentRecord>(`/customers/${id}/payment-links`, payload).then((r) => r.data),

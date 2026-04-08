@@ -43,7 +43,7 @@ const routes: FastifyPluginAsync = async (app) => {
   function resolveUpstream(path: string) {
     if (path.startsWith("/api/v1/auth")) return process.env.AUTH_SERVICE_URL!;
     if (
-      /^\/api\/v1\/customers\/[^/]+\/(billing|ledger|payments|payment-links)/.test(path) ||
+      /^\/api\/v1\/customers\/[^/]+\/(billing|ledger|payments|payment-links|site-billing)/.test(path) ||
       path.startsWith("/api/v1/billing") ||
       path.startsWith("/api/v1/finance")
     ) {
