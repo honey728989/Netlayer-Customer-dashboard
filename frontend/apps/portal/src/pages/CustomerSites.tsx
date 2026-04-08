@@ -62,6 +62,11 @@ export function CustomerSites() {
     const status = site.status?.toUpperCase()
     return status === 'UP' || status === 'ONLINE'
   }).length
+  const unhealthy = filtered.filter((site) => {
+    const current = site.status?.toUpperCase()
+    return current === 'DOWN' || current === 'OFFLINE' || current === 'DEGRADED'
+  }).length
+  const scopeLabel = selectedSiteId ? 'Selected site focus' : city ? `${city} sites` : 'Full site portfolio'
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -96,6 +101,30 @@ export function CustomerSites() {
       </div>
 
       <CustomerSiteFilterBar sites={siteList} />
+
+      <div
+        className="rounded-2xl border px-4 py-3"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-surface-2)' }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em]" style={{ color: 'var(--text-muted)' }}>
+              Site Scope
+            </p>
+            <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {scopeLabel}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px]">
+            <span className="rounded-full border px-2.5 py-1" style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}>
+              {filtered.length} visible sites
+            </span>
+            <span className="rounded-full border px-2.5 py-1" style={{ borderColor: 'var(--border)', color: unhealthy > 0 ? 'var(--status-degraded)' : 'var(--text-dim)' }}>
+              {unhealthy} unhealthy
+            </span>
+          </div>
+        </div>
+      </div>
 
       <div className="relative w-64">
         <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-dim)' }} />
