@@ -21,6 +21,7 @@ import {
   Wallet,
   Inbox,
   ShieldCheck,
+  FileText,
   type LucideIcon,
 } from 'lucide-react'
 import { useUIStore, useAlertStore } from '@/store'
@@ -84,6 +85,7 @@ const NAV_BY_ROLE: Record<UserRole, { title: string; sections: NavSection[] }> =
           { to: '/portal/tickets', label: 'Tickets', icon: Ticket },
           { to: '/portal/notifications', label: 'Notifications', icon: Inbox },
           { to: '/portal/access', label: 'Access', icon: ShieldCheck },
+          { to: '/portal/documents', label: 'Documents', icon: FileText },
           { to: '/portal/billing', label: 'Billing', icon: CreditCard },
           { to: '/portal/reports/sla', label: 'Reports', icon: BarChart3 },
         ],

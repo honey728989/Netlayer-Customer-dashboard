@@ -588,6 +588,28 @@ export interface CustomerAuditLog {
   details?: Record<string, unknown>
 }
 
+export interface CustomerDocument {
+  id: string
+  title: string
+  category: 'CONTRACT' | 'KYC' | 'BILLING' | 'IMPLEMENTATION' | 'REPORT' | 'COMPLIANCE' | 'OTHER'
+  status: string
+  fileUrl?: string | null
+  notes?: string | null
+  linkedSiteId?: string | null
+  linkedSiteName?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CustomerDocumentPayload {
+  title: string
+  category: CustomerDocument['category']
+  fileUrl?: string
+  notes?: string
+  linkedSiteId?: string
+  status?: string
+}
+
 export interface PaymentRecord {
   id: string
   customer_id?: string

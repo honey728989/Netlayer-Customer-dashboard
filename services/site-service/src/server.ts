@@ -643,6 +643,152 @@ const routes: FastifyPluginAsync = async (app) => {
     }));
   });
 
+  app.get("/customers/:id/documents", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const scopedSiteIds = await resolveScopedSiteIds(user, params.id);
+    const result = await query<{
+      id: string;
+      title: string;
+      category: string;
+      status: string;
+      file_url: string | null;
+      notes: string | null;
+      linked_site_id: string | null;
+      linked_site_name: string | null;
+      created_at: string;
+      updated_at: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          cd.id,
+          cd.title,
+          cd.category,
+          cd.status,
+          cd.file_url,
+          cd.notes,
+          cd.linked_site_id,
+          s.name AS linked_site_name,
+          cd.created_at::text,
+          cd.updated_at::text
+        FROM customer_documents cd
+        LEFT JOIN sites s ON s.id = cd.linked_site_id
+        WHERE cd.customer_id = $1
+          ${scopedSiteIds ? "AND (cd.linked_site_id IS NULL OR cd.linked_site_id = ANY($2::uuid[]))" : ""}
+        ORDER BY cd.created_at DESC
+      `,
+      scopedSiteIds ? [params.id, scopedSiteIds] : [params.id]
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      status: row.status,
+      fileUrl: row.file_url,
+      notes: row.notes,
+      linkedSiteId: row.linked_site_id,
+      linkedSiteName: row.linked_site_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  });
+
+  app.post("/customers/:id/documents", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      title?: string;
+      category?: string;
+      fileUrl?: string;
+      notes?: string;
+      linkedSiteId?: string;
+      status?: string;
+    };
+
+    if (!body.title || !body.category) {
+      return reply.code(400).send({ message: "title and category are required" });
+    }
+
+    const inserted = await query<{
+      id: string;
+      title: string;
+      category: string;
+      status: string;
+      file_url: string | null;
+      notes: string | null;
+      linked_site_id: string | null;
+      linked_site_name: string | null;
+      created_at: string;
+      updated_at: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO customer_documents (
+          customer_id,
+          uploaded_by_user_id,
+          linked_site_id,
+          title,
+          category,
+          status,
+          file_url,
+          notes
+        )
+        VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'ACTIVE'), $7, $8)
+        RETURNING
+          id,
+          title,
+          category,
+          status,
+          file_url,
+          notes,
+          linked_site_id,
+          created_at::text,
+          updated_at::text
+      `,
+      [
+        params.id,
+        user.userId,
+        body.linkedSiteId ?? null,
+        body.title.trim(),
+        body.category.trim(),
+        body.status?.trim() || null,
+        body.fileUrl?.trim() || null,
+        body.notes?.trim() || null,
+      ]
+    );
+
+    await writeAuditLog(user.userId, "customer", params.id, "document.created", {
+      title: body.title.trim(),
+      category: body.category.trim(),
+      linkedSiteId: body.linkedSiteId ?? null
+    });
+
+    reply.code(201);
+    const row = inserted.rows[0];
+    return {
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      status: row.status,
+      fileUrl: row.file_url,
+      notes: row.notes,
+      linkedSiteId: row.linked_site_id,
+      linkedSiteName: row.linked_site_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  });
+
   app.get("/customers/:id/requests", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;

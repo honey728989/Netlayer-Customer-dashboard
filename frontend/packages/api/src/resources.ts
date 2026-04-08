@@ -22,6 +22,8 @@ import type {
   CustomerServiceRequest,
   CustomerServiceRequestPayload,
   CustomerAuditLog,
+  CustomerDocument,
+  CustomerDocumentPayload,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -200,6 +202,12 @@ export const customersApi = {
 
   getAuditLogs: (id: string) =>
     http.get<CustomerAuditLog[]>(`/customers/${id}/audit-logs`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  getDocuments: (id: string) =>
+    http.get<CustomerDocument[]>(`/customers/${id}/documents`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  createDocument: (id: string, payload: CustomerDocumentPayload) =>
+    http.post<CustomerDocument>(`/customers/${id}/documents`, payload).then((r) => r.data),
 
   createPaymentLink: (id: string, payload: { amount: number; invoiceId?: string; description?: string }) =>
     http.post<PaymentRecord>(`/customers/${id}/payment-links`, payload).then((r) => r.data),
