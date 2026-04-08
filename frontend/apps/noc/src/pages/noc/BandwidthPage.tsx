@@ -1,5 +1,6 @@
 import { Card, PageHeader } from '@netlayer/ui'
 import { BandwidthChart } from '@/components/charts/BandwidthChart'
+import { appEnv } from '@/config/env'
 import { useBandwidthStore } from '@/store'
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
@@ -53,7 +54,7 @@ export function BandwidthPage() {
         title="Per-Site Bandwidth — Grafana"
         action={
           <a
-            href={import.meta.env.VITE_GRAFANA_URL ?? '#'}
+            href={appEnv.grafanaUrl ?? '#'}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] text-brand hover:underline"
@@ -63,9 +64,9 @@ export function BandwidthPage() {
         }
       >
         <div className="h-[480px] overflow-hidden rounded-md border border-border bg-surface-2">
-          {import.meta.env.VITE_GRAFANA_URL ? (
+          {appEnv.grafanaUrl ? (
             <iframe
-              src={`${import.meta.env.VITE_GRAFANA_URL}/d/bandwidth-sites?orgId=1&refresh=10s&theme=dark&kiosk`}
+              src={`${appEnv.grafanaUrl}/d/bandwidth-sites?orgId=1&refresh=10s&theme=dark&kiosk`}
               className="h-full w-full border-0"
               title="Grafana Bandwidth Dashboard"
             />

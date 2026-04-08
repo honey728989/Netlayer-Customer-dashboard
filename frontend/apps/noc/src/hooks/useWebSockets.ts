@@ -1,8 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react'
 import type { WsEvent } from '@netlayer/api'
+import { appEnv } from '@/config/env'
 import { useAlertStore, useBandwidthStore, useSiteStatusStore } from '@/store'
 
-const WS_BASE = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}`
+const WS_BASE = appEnv.wsUrl ?? `ws://${window.location.host}`
 const RECONNECT_DELAY_MS = 3_000
 const MAX_RECONNECT_ATTEMPTS = 10
 

@@ -2,12 +2,28 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
-import { authApi } from '@netlayer/api'
+import { authApi, type AuthUser } from '@netlayer/api'
 
 const ROLE_REDIRECT: Record<string, string> = {
   admin: '/noc',
   customer: '/portal',
   partner: '/partner',
+}
+
+function getRedirectPath(user: Pick<AuthUser, 'role' | 'roles'>): string {
+  if (user.role && ROLE_REDIRECT[user.role]) {
+    return ROLE_REDIRECT[user.role]
+  }
+
+  const roles = user.roles ?? []
+  if (roles.some((role) => role === 'SUPER_ADMIN' || role === 'NOC_ENGINEER')) {
+    return '/noc'
+  }
+  if (roles.some((role) => role === 'PARTNER_ADMIN' || role === 'PARTNER_USER')) {
+    return '/partner'
+  }
+
+  return '/portal'
 }
 
 export function LoginPage() {
@@ -27,7 +43,7 @@ export function LoginPage() {
     try {
       const res = await authApi.login(email, password)
       setAuth(res.user, res.accessToken, res.refreshToken)
-      navigate(ROLE_REDIRECT[res.user.role] ?? '/', { replace: true })
+      navigate(getRedirectPath(res.user), { replace: true })
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??

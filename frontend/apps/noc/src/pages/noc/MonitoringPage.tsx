@@ -1,5 +1,6 @@
 import { useAlerts, useAlertCount } from '@/hooks/useQueries'
 import { AlertFeed } from '@/components/alerts/AlertFeed'
+import { appEnv } from '@/config/env'
 import { KpiCard, Card, PageHeader } from '@netlayer/ui'
 import { AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react'
 
@@ -78,7 +79,7 @@ export function MonitoringPage() {
         title="Zabbix — Network Overview"
         action={
           <a
-            href={`${import.meta.env.VITE_ZABBIX_URL ?? '#'}`}
+            href={`${appEnv.zabbixUrl ?? '#'}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] text-brand hover:underline"
@@ -88,9 +89,9 @@ export function MonitoringPage() {
         }
       >
         <div className="h-96 overflow-hidden rounded-md border border-border bg-surface-2">
-          {import.meta.env.VITE_ZABBIX_URL ? (
+          {appEnv.zabbixUrl ? (
             <iframe
-              src={`${import.meta.env.VITE_ZABBIX_URL}/zabbix.php?action=dashboard.view`}
+              src={`${appEnv.zabbixUrl}/zabbix.php?action=dashboard.view`}
               className="h-full w-full border-0"
               title="Zabbix Dashboard"
               sandbox="allow-same-origin allow-scripts allow-forms"

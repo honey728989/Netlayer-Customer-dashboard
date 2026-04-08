@@ -1,16 +1,7 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
-declare global {
-  interface ImportMetaEnv {
-    readonly VITE_API_URL?: string
-  }
-
-  interface ImportMeta {
-    readonly env: ImportMetaEnv
-  }
-}
-
-const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const viteEnv = (import.meta as { env?: { VITE_API_URL?: string } }).env ?? {}
+const BASE_URL = viteEnv.VITE_API_URL ?? ''
 
 class HttpClient {
   private instance: AxiosInstance
@@ -81,5 +72,3 @@ class HttpClient {
 
 export const httpClient = new HttpClient()
 export const http = httpClient.http
-
-export {}

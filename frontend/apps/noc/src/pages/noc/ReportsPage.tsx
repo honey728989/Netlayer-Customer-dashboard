@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Download, RefreshCw } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useTicketSlaStats } from '@/hooks/useQueries'
+import { appEnv } from '@/config/env'
 import { KpiCard, Card, PageHeader } from '@netlayer/ui'
 import { customersApi } from '@netlayer/api'
 import type { Customer } from '@netlayer/api'
@@ -143,7 +144,7 @@ export function ReportsPage() {
       <Card
         title="SLA Trend — Grafana"
         action={
-          <a href={`${import.meta.env.VITE_GRAFANA_URL ?? '#'}/d/sla-trend`} target="_blank" rel="noopener noreferrer"
+          <a href={`${appEnv.grafanaUrl ?? '#'}/d/sla-trend`} target="_blank" rel="noopener noreferrer"
              className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>
             Open →
           </a>
@@ -151,9 +152,9 @@ export function ReportsPage() {
       >
         <div className="h-64 overflow-hidden rounded-md flex items-center justify-center"
              style={{ backgroundColor: 'var(--bg-surface-2)', border: '1px solid var(--border)' }}>
-          {import.meta.env.VITE_GRAFANA_URL ? (
+          {appEnv.grafanaUrl ? (
             <iframe
-              src={`${import.meta.env.VITE_GRAFANA_URL}/d/sla-trend?theme=dark&kiosk`}
+              src={`${appEnv.grafanaUrl}/d/sla-trend?theme=dark&kiosk`}
               className="h-full w-full border-0" title="SLA Trend"
             />
           ) : (
