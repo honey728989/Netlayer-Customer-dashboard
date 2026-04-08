@@ -350,6 +350,7 @@ export interface FeasibilityRequest {
   status: string
   survey_date?: string
   result_notes?: string
+  feasibility_summary?: string
   estimated_mrc?: number
   notes?: string
   created_at?: string
@@ -369,6 +370,33 @@ export interface CustomerHeatmapPoint {
   activeAlertCount: number
   latestLatencyMs?: number | null
   latestPacketLossPct?: number | null
+}
+
+export interface BillingLedgerSummary {
+  invoicedAmount: number
+  outstandingAmount: number
+  overdueInvoices: number
+  collectedAmount: number
+  pendingPaymentLinks: number
+}
+
+export interface PaymentRecord {
+  id: string
+  customer_id?: string
+  customerId?: string
+  invoice_id?: string
+  invoiceId?: string
+  amount: number | string
+  status: string
+  payment_method?: string
+  paymentMethod?: string
+  payment_link?: string
+  paymentLink?: string
+  paid_at?: string
+  paidAt?: string
+  payload?: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────

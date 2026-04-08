@@ -80,6 +80,95 @@ const routes: FastifyPluginAsync = async (app) => {
     return result.rows;
   });
 
+  app.get("/tickets/:id", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const result = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          t.*,
+          c.name AS customer_name,
+          s.name AS site_name
+        FROM tickets t
+        JOIN customers c ON c.id = t.customer_id
+        LEFT JOIN sites s ON s.id = t.site_id
+        WHERE t.id = $1
+          ${user.customerId ? "AND t.customer_id = $2" : ""}
+        LIMIT 1
+      `,
+      user.customerId ? [params.id, user.customerId] : [params.id]
+    );
+
+    if (!result.rows[0]) {
+      return reply.code(404).send({ message: "Ticket not found" });
+    }
+
+    const comments = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          tc.*,
+          u.full_name AS author_name,
+          ARRAY_REMOVE(ARRAY_AGG(r.name), NULL)[1] AS author_role
+        FROM ticket_comments tc
+        LEFT JOIN users u ON u.id = COALESCE(tc.author_user_id, tc.author_id)
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        WHERE tc.ticket_id = $1
+          ${user.customerId ? "AND tc.is_internal = FALSE" : ""}
+        GROUP BY tc.id, u.full_name
+        ORDER BY tc.created_at ASC
+      `,
+      [params.id]
+    );
+
+    return {
+      ...result.rows[0],
+      comments: comments.rows
+    };
+  });
+
+  app.get("/tickets/:id/comments", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const ticket = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT id
+        FROM tickets
+        WHERE id = $1
+          ${user.customerId ? "AND customer_id = $2" : ""}
+      `,
+      user.customerId ? [params.id, user.customerId] : [params.id]
+    );
+
+    if (!ticket.rows[0]) {
+      return reply.code(404).send({ message: "Ticket not found" });
+    }
+
+    const comments = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          tc.*,
+          u.full_name AS author_name,
+          ARRAY_REMOVE(ARRAY_AGG(r.name), NULL)[1] AS author_role
+        FROM ticket_comments tc
+        LEFT JOIN users u ON u.id = COALESCE(tc.author_user_id, tc.author_id)
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        WHERE tc.ticket_id = $1
+          ${user.customerId ? "AND tc.is_internal = FALSE" : ""}
+        GROUP BY tc.id, u.full_name
+        ORDER BY tc.created_at ASC
+      `,
+      [params.id]
+    );
+
+    return comments.rows;
+  });
+
   app.post("/tickets", { preHandler: [requireAuth] }, async (request, reply) => {
     const body = request.body as {
       customerId: string;
@@ -190,6 +279,67 @@ const routes: FastifyPluginAsync = async (app) => {
     });
 
     return result.rows[0];
+  });
+
+  app.post("/tickets/:id/comments", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const body = request.body as {
+      body: string;
+      isInternal?: boolean;
+    };
+
+    const ticket = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT id
+        FROM tickets
+        WHERE id = $1
+          ${user.customerId ? "AND customer_id = $2" : ""}
+      `,
+      user.customerId ? [params.id, user.customerId] : [params.id]
+    );
+
+    if (!ticket.rows[0]) {
+      return reply.code(404).send({ message: "Ticket not found" });
+    }
+
+    const isInternal = Boolean(body.isInternal) && !user.customerId;
+    const inserted = await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO ticket_comments (
+          ticket_id,
+          author_id,
+          author_user_id,
+          body,
+          is_internal
+        )
+        VALUES ($1, $2, $2, $3, $4)
+        RETURNING id
+      `,
+      [params.id, user.userId, body.body, isInternal]
+    );
+
+    const comment = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          tc.*,
+          u.full_name AS author_name,
+          ARRAY_REMOVE(ARRAY_AGG(r.name), NULL)[1] AS author_role
+        FROM ticket_comments tc
+        LEFT JOIN users u ON u.id = COALESCE(tc.author_user_id, tc.author_id)
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        WHERE tc.id = $1
+        GROUP BY tc.id, u.full_name
+      `,
+      [inserted.rows[0].id]
+    );
+
+    reply.code(201);
+    return comment.rows[0];
   });
 
   app.post("/internal/tickets/auto-create", async (request, reply) => {

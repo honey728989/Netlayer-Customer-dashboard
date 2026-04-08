@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Ticket as TicketIcon } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
@@ -7,26 +8,28 @@ import { ticketsApi } from '@netlayer/api'
 import type { Ticket } from '@netlayer/api'
 
 const STATUS_COLOR: Record<string, string> = {
-  OPEN:        'var(--brand)',
+  OPEN: 'var(--brand)',
   IN_PROGRESS: 'var(--status-info)',
-  PENDING:     'var(--status-degraded)',
-  RESOLVED:    'var(--status-online)',
-  CLOSED:      'var(--text-dim)',
+  PENDING: 'var(--status-degraded)',
+  RESOLVED: 'var(--status-online)',
+  CLOSED: 'var(--text-dim)',
 }
 
-function priorityColor(p: string) {
-  const u = p?.toUpperCase()
-  if (u === 'P1' || u === 'CRITICAL') return 'var(--status-offline)'
-  if (u === 'P2' || u === 'HIGH')     return 'var(--status-degraded)'
-  if (u === 'P3' || u === 'MEDIUM')   return 'var(--status-info)'
+function priorityColor(priority: string) {
+  const normalized = priority?.toUpperCase()
+  if (normalized === 'P1' || normalized === 'CRITICAL') return 'var(--status-offline)'
+  if (normalized === 'P2' || normalized === 'HIGH') return 'var(--status-degraded)'
+  if (normalized === 'P3' || normalized === 'MEDIUM') return 'var(--status-info)'
   return 'var(--text-muted)'
 }
 
 function TicketStatusBadge({ status }: { status: string }) {
   const color = STATUS_COLOR[status?.toUpperCase()] ?? 'var(--text-muted)'
   return (
-    <span className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
-          style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}>
+    <span
+      className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}
+    >
       {(status ?? '').replace('_', ' ')}
     </span>
   )
@@ -35,8 +38,10 @@ function TicketStatusBadge({ status }: { status: string }) {
 function PriorityBadge({ priority }: { priority: string }) {
   const color = priorityColor(priority)
   return (
-    <span className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
-          style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}>
+    <span
+      className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}
+    >
       {priority?.toUpperCase()}
     </span>
   )
@@ -57,26 +62,25 @@ export function CustomerTickets() {
 
   const { data: ticketsData, isLoading } = useQuery({
     queryKey: ['tickets', 'list', customerId, statusFilter],
-    queryFn: () => ticketsApi.list({
-      customerId,
-      status: statusFilter || undefined,
-      pageSize: 100,
-    }),
+    queryFn: () =>
+      ticketsApi.list({
+        customerId,
+        status: statusFilter || undefined,
+        pageSize: 100,
+      }),
     enabled: Boolean(customerId),
     staleTime: 30_000,
     refetchInterval: 60_000,
   })
 
   const tickets = (ticketsData?.data ?? []) as Ticket[]
-  const filtered = tickets.filter(t =>
+  const filtered = tickets.filter((ticket) =>
     !search ||
-    (t.title ?? t.subject ?? '').toLowerCase().includes(search.toLowerCase())
+    (ticket.title ?? ticket.subject ?? '').toLowerCase().includes(search.toLowerCase()),
   )
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Support Tickets</h1>
@@ -84,29 +88,33 @@ export function CustomerTickets() {
             {ticketsData?.total ?? 0} ticket{(ticketsData?.total ?? 0) !== 1 ? 's' : ''}
           </p>
         </div>
-        <a href="/portal/tickets/new" className="btn-primary gap-1.5">
+        <Link to="/portal/tickets/new" className="btn-primary gap-1.5">
           <Plus size={13} /> Raise Ticket
-        </a>
+        </Link>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative">
-          <input className="input-field pl-3 w-56" placeholder="Search tickets…"
-            value={search} onChange={e => setSearch(e.target.value)} />
+          <input
+            className="input-field pl-3 w-56"
+            placeholder="Search tickets..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
         </div>
         <div className="filter-tab-group">
-          {STATUS_TABS.map(tab => (
-            <button key={tab.value}
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.value}
               onClick={() => setStatusFilter(tab.value)}
-              className={statusFilter === tab.value ? 'filter-tab-active' : 'filter-tab'}>
+              className={statusFilter === tab.value ? 'filter-tab-active' : 'filter-tab'}
+            >
               {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -118,61 +126,64 @@ export function CustomerTickets() {
                 <th className="table-th w-28">Status</th>
                 <th className="table-th w-32">SLA Due</th>
                 <th className="table-th w-28">Opened</th>
+                <th className="table-th w-20 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="table-row">
-                    {Array.from({ length: 6 }).map((_, j) => (
-                      <td key={j} className="table-td"><div className="skeleton h-4 rounded w-full max-w-[100px]" /></td>
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="table-row">
+                    {Array.from({ length: 7 }).map((_, cellIndex) => (
+                      <td key={cellIndex} className="table-td">
+                        <div className="skeleton h-4 rounded w-full max-w-[100px]" />
+                      </td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center" style={{ color: 'var(--text-muted)' }}>
+                  <td colSpan={7} className="py-12 text-center" style={{ color: 'var(--text-muted)' }}>
                     <TicketIcon size={24} className="mx-auto mb-2 opacity-30" />
                     <p className="text-xs">
-                      {statusFilter ? 'No tickets with this status' : 'No open tickets — great job!'}
+                      {statusFilter ? 'No tickets with this status' : 'No open tickets - great job!'}
                     </p>
                   </td>
                 </tr>
               ) : (
-                filtered.map((t: Ticket) => {
-                  const slaDate = t.resolution_due_at ?? t.resolutionDueAt
+                filtered.map((ticket) => {
+                  const slaDate = ticket.resolution_due_at ?? ticket.resolutionDueAt
                   const slaMs = slaDate ? new Date(slaDate).getTime() - Date.now() : null
                   const slaBreached = slaMs !== null && slaMs <= 0
                   const slaHours = slaMs !== null ? Math.floor(slaMs / 3_600_000) : null
 
                   return (
-                    <tr key={t.id} className="table-row">
+                    <tr key={ticket.id} className="table-row">
                       <td className="table-td">
                         <span className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
-                          #{t.id.slice(-5)}
+                          #{ticket.id.slice(-5)}
                         </span>
                       </td>
                       <td className="table-td">
                         <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>
-                          {t.title ?? t.subject}
+                          {ticket.title ?? ticket.subject}
                         </p>
-                        {(t.site_name ?? t.siteName) && (
+                        {(ticket.site_name ?? ticket.siteName) && (
                           <p className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
-                            {t.site_name ?? t.siteName}
+                            {ticket.site_name ?? ticket.siteName}
                           </p>
                         )}
                       </td>
                       <td className="table-td">
-                        <PriorityBadge priority={t.priority} />
+                        <PriorityBadge priority={ticket.priority} />
                       </td>
                       <td className="table-td">
-                        <TicketStatusBadge status={t.status} />
+                        <TicketStatusBadge status={ticket.status} />
                       </td>
                       <td className="table-td">
                         {!slaDate ? (
                           <span className="text-[10px]" style={{ color: 'var(--text-dim)' }}>—</span>
                         ) : slaBreached ? (
-                          <span className="font-mono text-[10px]" style={{ color: 'var(--status-offline)' }}>⚠ Breached</span>
+                          <span className="font-mono text-[10px]" style={{ color: 'var(--status-offline)' }}>Breached</span>
                         ) : (slaHours ?? 0) < 2 ? (
                           <span className="font-mono text-[10px]" style={{ color: 'var(--status-degraded)' }}>
                             {slaHours}h left
@@ -184,10 +195,12 @@ export function CustomerTickets() {
                         )}
                       </td>
                       <td className="table-td font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                        {formatDistanceToNow(
-                          new Date(t.created_at ?? t.createdAt ?? Date.now()),
-                          { addSuffix: true }
-                        )}
+                        {formatDistanceToNow(new Date(ticket.created_at ?? ticket.createdAt ?? Date.now()), { addSuffix: true })}
+                      </td>
+                      <td className="table-td text-right">
+                        <Link to={`/portal/tickets/${ticket.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>
+                          Open
+                        </Link>
                       </td>
                     </tr>
                   )

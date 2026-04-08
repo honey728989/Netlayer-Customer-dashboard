@@ -19,6 +19,7 @@ import {
   BriefcaseBusiness,
   KanbanSquare,
   Wallet,
+  Inbox,
   type LucideIcon,
 } from 'lucide-react'
 import { useUIStore, useAlertStore } from '@/store'
@@ -80,6 +81,7 @@ const NAV_BY_ROLE: Record<UserRole, { title: string; sections: NavSection[] }> =
           { to: '/portal/sites', label: 'Sites', icon: Globe },
           { to: '/portal/services', label: 'Services', icon: Network },
           { to: '/portal/tickets', label: 'Tickets', icon: Ticket },
+          { to: '/portal/notifications', label: 'Notifications', icon: Inbox },
           { to: '/portal/billing', label: 'Billing', icon: CreditCard },
           { to: '/portal/reports/sla', label: 'Reports', icon: BarChart3 },
         ],

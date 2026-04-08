@@ -6,6 +6,8 @@ import type {
   Service,
   FeasibilityRequest,
   CustomerHeatmapPoint,
+  BillingLedgerSummary,
+  PaymentRecord,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -135,7 +137,13 @@ export const customersApi = {
     http.get(`/customers/${id}/billing`).then((r) => r.data),
 
   getLedger: (id: string) =>
-    http.get(`/customers/${id}/ledger`).then((r) => r.data),
+    http.get<BillingLedgerSummary>(`/customers/${id}/ledger`).then((r) => r.data),
+
+  getPayments: (id: string) =>
+    http.get<PaymentRecord[]>(`/customers/${id}/payments`).then((r) => r.data),
+
+  createPaymentLink: (id: string, payload: { amount: number; invoiceId?: string; description?: string }) =>
+    http.post<PaymentRecord>(`/customers/${id}/payment-links`, payload).then((r) => r.data),
 
   getHeatmap: (id: string) =>
     http.get<CustomerHeatmapPoint[]>(`/customers/${id}/heatmap`).then((r) => r.data),
