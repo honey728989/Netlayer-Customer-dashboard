@@ -557,6 +557,123 @@ const routes: FastifyPluginAsync = async (app) => {
     };
   });
 
+  app.post("/sites/:id/devices", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const siteResult = await query<{
+      id: string;
+      customer_id: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `SELECT id, customer_id FROM sites WHERE id = $1`,
+      [params.id]
+    );
+
+    const site = siteResult.rows[0];
+    if (!site) {
+      return reply.code(404).send({ message: "Site not found" });
+    }
+
+    if (!canManageCustomerWorkspace(user, site.customer_id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      hostname?: string;
+      ipAddress?: string;
+      vendor?: string;
+      model?: string;
+      type?: "router" | "switch" | "firewall" | "cpe";
+      status?: string;
+      zabbixHostId?: string;
+      monitoringEnabled?: boolean;
+      zabbixHostGroup?: string;
+      notes?: string;
+    };
+
+    if (!body.hostname || !body.ipAddress || !body.vendor) {
+      return reply.code(400).send({ message: "hostname, ipAddress, and vendor are required" });
+    }
+
+    if (body.zabbixHostId) {
+      const existing = await query<{ id: string }>(
+        process.env.DATABASE_URL!,
+        `SELECT id FROM devices WHERE zabbix_host_id = $1`,
+        [body.zabbixHostId.trim()]
+      );
+
+      if (existing.rows[0]) {
+        return reply.code(409).send({ message: "Zabbix host ID is already mapped to another device" });
+      }
+    }
+
+    const inserted = await query<{
+      id: string;
+      hostname: string;
+      ip_address: string;
+      vendor: string;
+      status: string;
+      zabbix_host_id: string | null;
+      metadata: Record<string, unknown>;
+      created_at: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO devices (
+          site_id,
+          hostname,
+          ip_address,
+          vendor,
+          status,
+          zabbix_host_id,
+          metadata
+        )
+        VALUES ($1, $2, $3::inet, $4, COALESCE($5, 'ONLINE'), $6, $7::jsonb)
+        RETURNING
+          id,
+          hostname,
+          ip_address::text,
+          vendor,
+          status,
+          zabbix_host_id,
+          metadata,
+          created_at::text
+      `,
+      [
+        params.id,
+        body.hostname.trim(),
+        body.ipAddress.trim(),
+        body.vendor.trim(),
+        body.status?.trim().toUpperCase() || "ONLINE",
+        body.zabbixHostId?.trim() || null,
+        JSON.stringify({
+          type: body.type ?? "router",
+          model: body.model?.trim() || null,
+          monitoringEnabled: body.monitoringEnabled ?? true,
+          zabbixHostGroup: body.zabbixHostGroup?.trim() || null,
+          notes: body.notes?.trim() || null
+        })
+      ]
+    );
+
+    const row = inserted.rows[0];
+    await writeAuditLog(user.userId, "device", row.id, "device.created", {
+      siteId: params.id,
+      zabbixHostId: row.zabbix_host_id
+    });
+
+    return {
+      id: row.id,
+      hostname: row.hostname,
+      ip_address: row.ip_address,
+      vendor: row.vendor,
+      status: row.status,
+      zabbix_host_id: row.zabbix_host_id,
+      metadata: row.metadata,
+      created_at: row.created_at
+    };
+  });
+
   app.get("/customers/:id", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;

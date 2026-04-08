@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Cpu, MapPin, Network, Ticket } from 'lucide-react'
-import { sitesApi, ticketsApi, type Service, type SiteDevice, type SiteEvent, type SiteTraffic, type Ticket as TicketType } from '@netlayer/api'
+import { sitesApi, ticketsApi, type Service, type SiteDevice, type SiteDeviceCreatePayload, type SiteEvent, type SiteTraffic, type Ticket as TicketType } from '@netlayer/api'
 
 function metric<T>(data: T[] | undefined, pick: (item: T) => number | undefined) {
   if (!data?.length) return 0
@@ -13,6 +14,20 @@ export function AdminSiteDetailPage() {
   const { siteId = '' } = useParams()
   const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const to = new Date().toISOString()
+  const queryClient = useQueryClient()
+  const [deviceForm, setDeviceForm] = useState<SiteDeviceCreatePayload>({
+    hostname: '',
+    ipAddress: '',
+    vendor: '',
+    model: '',
+    type: 'router',
+    status: 'ONLINE',
+    zabbixHostId: '',
+    monitoringEnabled: true,
+    zabbixHostGroup: '',
+    notes: '',
+  })
+  const [deviceError, setDeviceError] = useState('')
 
   const { data: site } = useQuery({
     queryKey: ['admin', 'site', siteId],
@@ -51,6 +66,47 @@ export function AdminSiteDetailPage() {
   const latestOutbound = metric<SiteTraffic>(traffic, (item) => item.outboundMbps ?? item.outbound_bps)
   const latency = metric<SiteTraffic>(traffic, (item) => item.latency_ms)
   const packetLoss = metric<SiteTraffic>(traffic, (item) => item.packet_loss_pct)
+
+  const createDevice = useMutation({
+    mutationFn: (payload: SiteDeviceCreatePayload) => sitesApi.createDevice(siteId, payload),
+    onSuccess: async () => {
+      setDeviceError('')
+      setDeviceForm({
+        hostname: '',
+        ipAddress: '',
+        vendor: '',
+        model: '',
+        type: 'router',
+        status: 'ONLINE',
+        zabbixHostId: '',
+        monitoringEnabled: true,
+        zabbixHostGroup: '',
+        notes: '',
+      })
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'site', siteId, 'devices'] })
+    },
+    onError: (error: any) => {
+      setDeviceError(error?.response?.data?.message ?? 'Failed to map Zabbix device')
+    },
+  })
+
+  const handleCreateDevice = () => {
+    setDeviceError('')
+    if (!deviceForm.hostname.trim() || !deviceForm.ipAddress.trim() || !deviceForm.vendor.trim()) {
+      setDeviceError('Hostname, IP address, and vendor are required.')
+      return
+    }
+    createDevice.mutate({
+      ...deviceForm,
+      hostname: deviceForm.hostname.trim(),
+      ipAddress: deviceForm.ipAddress.trim(),
+      vendor: deviceForm.vendor.trim(),
+      model: deviceForm.model?.trim() || undefined,
+      zabbixHostId: deviceForm.zabbixHostId?.trim() || undefined,
+      zabbixHostGroup: deviceForm.zabbixHostGroup?.trim() || undefined,
+      notes: deviceForm.notes?.trim() || undefined,
+    })
+  }
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -122,10 +178,30 @@ export function AdminSiteDetailPage() {
               {devices.map((device: SiteDevice) => (
                 <div key={device.id} className="rounded-lg border border-border bg-surface-2 px-3 py-2">
                   <p className="font-medium text-white">{device.hostname ?? device.name ?? 'Device'}</p>
-                  <p className="mt-1 text-dim">{device.vendor ?? 'Unknown'} · {device.model ?? 'Unknown model'} · {device.status}</p>
+                  <p className="mt-1 text-dim">
+                    {device.vendor ?? 'Unknown'} · {(device.model ?? String(device.metadata?.model ?? 'Unknown model'))} · {device.status}
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] text-dim">
+                    Zabbix: {device.zabbix_host_id ?? 'Not mapped'}
+                  </p>
                 </div>
               ))}
               {devices.length === 0 ? <p className="text-dim">No devices discovered</p> : null}
+            </div>
+            <div className="mt-4 rounded-xl border border-border bg-surface-2 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-dim">Add Device / Map Zabbix</p>
+              {deviceError ? <p className="mt-2 text-xs text-[color:var(--status-offline)]">{deviceError}</p> : null}
+              <div className="mt-3 grid gap-2">
+                <input className="input-field" placeholder="Hostname" value={deviceForm.hostname} onChange={(e) => setDeviceForm((current) => ({ ...current, hostname: e.target.value }))} />
+                <input className="input-field" placeholder="IP address" value={deviceForm.ipAddress} onChange={(e) => setDeviceForm((current) => ({ ...current, ipAddress: e.target.value }))} />
+                <input className="input-field" placeholder="Vendor" value={deviceForm.vendor} onChange={(e) => setDeviceForm((current) => ({ ...current, vendor: e.target.value }))} />
+                <input className="input-field" placeholder="Model" value={deviceForm.model ?? ''} onChange={(e) => setDeviceForm((current) => ({ ...current, model: e.target.value }))} />
+                <input className="input-field" placeholder="Zabbix host ID" value={deviceForm.zabbixHostId ?? ''} onChange={(e) => setDeviceForm((current) => ({ ...current, zabbixHostId: e.target.value }))} />
+                <input className="input-field" placeholder="Zabbix host group" value={deviceForm.zabbixHostGroup ?? ''} onChange={(e) => setDeviceForm((current) => ({ ...current, zabbixHostGroup: e.target.value }))} />
+                <button onClick={handleCreateDevice} disabled={createDevice.isPending} className="btn-primary justify-center">
+                  {createDevice.isPending ? 'Saving...' : 'Save Device Mapping'}
+                </button>
+              </div>
             </div>
           </div>
 

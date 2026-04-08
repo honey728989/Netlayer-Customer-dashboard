@@ -122,6 +122,21 @@ export interface SiteDevice {
   uptime?: string
   last_seen_at?: string
   created_at?: string
+  zabbix_host_id?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface SiteDeviceCreatePayload {
+  hostname: string
+  ipAddress: string
+  vendor: string
+  model?: string
+  type?: 'router' | 'switch' | 'firewall' | 'cpe'
+  status?: string
+  zabbixHostId?: string
+  monitoringEnabled?: boolean
+  zabbixHostGroup?: string
+  notes?: string
 }
 
 export interface SiteEvent {
