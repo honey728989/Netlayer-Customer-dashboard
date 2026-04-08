@@ -23,6 +23,11 @@ export function AdminCustomerDetailPage() {
     queryFn: () => customersApi.getOverview(customerId),
     enabled: Boolean(customerId),
   })
+  const { data: readiness } = useQuery({
+    queryKey: ['admin', 'customer', customerId, 'readiness'],
+    queryFn: () => customersApi.getReadiness(customerId),
+    enabled: Boolean(customerId),
+  })
 
   const { data: profile } = useQuery({
     queryKey: ['admin', 'customer', customerId, 'profile'],
@@ -167,6 +172,42 @@ export function AdminCustomerDetailPage() {
                 <p className="text-[10px] uppercase tracking-widest text-dim">Risk Flags</p>
                 <p className="mt-1 text-sm text-white">{String(overview?.riskFlags ?? 'No escalations')}</p>
               </div>
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={14} className="text-brand" />
+                <h2 className="font-display text-sm font-semibold">Onboarding Readiness</h2>
+              </div>
+              <span className="rounded-full border border-border px-2.5 py-1 text-[10px] font-mono text-white">
+                {readiness?.score ?? 0}% ready
+              </span>
+            </div>
+            <div className="space-y-2 text-xs">
+              {(readiness?.checks ?? []).map((check) => (
+                <div key={check.key} className="rounded-lg border border-border bg-surface-2 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium text-white">{check.label}</p>
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-mono"
+                      style={{
+                        color: check.ready ? 'var(--status-online)' : 'var(--status-degraded)',
+                        backgroundColor: check.ready
+                          ? 'color-mix(in srgb, var(--status-online) 12%, transparent)'
+                          : 'color-mix(in srgb, var(--status-degraded) 12%, transparent)',
+                        border: `1px solid ${check.ready
+                          ? 'color-mix(in srgb, var(--status-online) 25%, transparent)'
+                          : 'color-mix(in srgb, var(--status-degraded) 25%, transparent)'}`,
+                      }}
+                    >
+                      {check.ready ? 'READY' : 'PENDING'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-dim">{check.detail}</p>
+                </div>
+              ))}
             </div>
           </div>
 

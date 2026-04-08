@@ -313,6 +313,16 @@ export interface CustomerProfilePayload {
   annualContractValue?: number
 }
 
+export interface CustomerReadiness {
+  score: number
+  checks: Array<{
+    key: string
+    label: string
+    ready: boolean
+    detail: string
+  }>
+}
+
 export interface CustomerContactPayload {
   id?: string
   name: string

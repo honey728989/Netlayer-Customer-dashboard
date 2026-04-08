@@ -771,6 +771,106 @@ const routes: FastifyPluginAsync = async (app) => {
     };
   });
 
+  app.get("/customers/:id/readiness", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const result = await query<{
+      customer_exists: boolean;
+      has_zoho_customer_id: boolean;
+      site_count: string;
+      grafana_site_count: string;
+      zabbix_device_count: string;
+      service_count: string;
+      portal_user_count: string;
+      enterprise_admin_count: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          EXISTS(SELECT 1 FROM customers c WHERE c.id = $1) AS customer_exists,
+          EXISTS(SELECT 1 FROM customers c WHERE c.id = $1 AND c.zoho_customer_id IS NOT NULL AND LENGTH(TRIM(c.zoho_customer_id)) > 0) AS has_zoho_customer_id,
+          (SELECT COUNT(*)::text FROM sites s WHERE s.customer_id = $1) AS site_count,
+          (SELECT COUNT(*)::text FROM sites s WHERE s.customer_id = $1 AND s.dashboard_uid IS NOT NULL AND LENGTH(TRIM(s.dashboard_uid)) > 0) AS grafana_site_count,
+          (SELECT COUNT(*)::text FROM devices d INNER JOIN sites s ON s.id = d.site_id WHERE s.customer_id = $1 AND d.zabbix_host_id IS NOT NULL AND LENGTH(TRIM(d.zabbix_host_id)) > 0) AS zabbix_device_count,
+          (SELECT COUNT(*)::text FROM services sv WHERE sv.customer_id = $1) AS service_count,
+          (SELECT COUNT(*)::text FROM users u WHERE u.customer_id = $1) AS portal_user_count,
+          (
+            SELECT COUNT(*)::text
+            FROM users u
+            INNER JOIN user_roles ur ON ur.user_id = u.id
+            INNER JOIN roles r ON r.id = ur.role_id
+            WHERE u.customer_id = $1
+              AND r.name = 'ENTERPRISE_ADMIN'
+          ) AS enterprise_admin_count
+      `,
+      [params.id]
+    );
+
+    if (!result.rows[0]?.customer_exists) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const row = result.rows[0];
+    const siteCount = Number(row.site_count ?? 0);
+    const grafanaSiteCount = Number(row.grafana_site_count ?? 0);
+    const zabbixDeviceCount = Number(row.zabbix_device_count ?? 0);
+    const serviceCount = Number(row.service_count ?? 0);
+    const portalUserCount = Number(row.portal_user_count ?? 0);
+    const enterpriseAdminCount = Number(row.enterprise_admin_count ?? 0);
+
+    const checks = [
+      {
+        key: "sites",
+        label: "Sites Provisioned",
+        ready: siteCount > 0,
+        detail: siteCount > 0 ? `${siteCount} site(s) created` : "No sites created yet"
+      },
+      {
+        key: "services",
+        label: "Services Mapped",
+        ready: serviceCount > 0,
+        detail: serviceCount > 0 ? `${serviceCount} service(s) linked` : "No services linked yet"
+      },
+      {
+        key: "zabbix",
+        label: "Zabbix Monitoring",
+        ready: zabbixDeviceCount > 0,
+        detail: zabbixDeviceCount > 0 ? `${zabbixDeviceCount} monitored device(s)` : "No Zabbix host mapping yet"
+      },
+      {
+        key: "grafana",
+        label: "Grafana Dashboards",
+        ready: grafanaSiteCount > 0,
+        detail: grafanaSiteCount > 0 ? `${grafanaSiteCount} site(s) with dashboards` : "No Grafana dashboard mapped yet"
+      },
+      {
+        key: "billing",
+        label: "Zoho Billing Link",
+        ready: row.has_zoho_customer_id,
+        detail: row.has_zoho_customer_id ? "Zoho customer ID mapped" : "Zoho customer ID missing"
+      },
+      {
+        key: "portal",
+        label: "Portal Users",
+        ready: portalUserCount > 0 && enterpriseAdminCount > 0,
+        detail:
+          portalUserCount > 0
+            ? `${portalUserCount} portal user(s), ${enterpriseAdminCount} admin user(s)`
+            : "No customer portal users created"
+      }
+    ];
+
+    const readyChecks = checks.filter((check) => check.ready).length;
+    return {
+      score: Math.round((readyChecks / checks.length) * 100),
+      checks
+    };
+  });
+
   app.get("/customers/:id/heatmap", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;

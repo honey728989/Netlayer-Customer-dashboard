@@ -6,6 +6,7 @@ import type {
   CustomerCreatePayload,
   CustomerProfile,
   CustomerProfilePayload,
+  CustomerReadiness,
   Partner,
   Lead,
   Service,
@@ -153,6 +154,9 @@ export const customersApi = {
 
   getOverview: (id: string) =>
     http.get(`/customers/${id}/overview`).then((r) => r.data),
+
+  getReadiness: (id: string) =>
+    http.get<CustomerReadiness>(`/customers/${id}/readiness`).then((r) => r.data),
 
   getServices: (id: string) =>
     http.get<Service[]>(`/customers/${id}/services`).then((r) => r.data),
