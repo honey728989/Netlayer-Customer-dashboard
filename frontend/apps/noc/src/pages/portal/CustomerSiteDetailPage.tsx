@@ -1,7 +1,15 @@
 import { useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { sitesApi, type SiteDevice, type SiteEvent, type SiteTraffic } from '@netlayer/api'
+import {
+  sitesApi,
+  ticketsApi,
+  type Service,
+  type SiteDevice,
+  type SiteEvent,
+  type SiteTraffic,
+  type Ticket,
+} from '@netlayer/api'
 import { useCustomerPortalSiteFilterStore } from '@/store'
 import { Card, PageHeader } from '@netlayer/ui'
 
@@ -46,12 +54,32 @@ export function CustomerSiteDetailPage() {
     staleTime: 30_000,
   })
 
+  const { data: services = [] } = useQuery({
+    queryKey: ['site', siteId, 'services'],
+    queryFn: () => sitesApi.getServices(siteId),
+    enabled: Boolean(siteId),
+    staleTime: 60_000,
+  })
+
+  const { data: ticketsResponse } = useQuery({
+    queryKey: ['tickets', 'site-detail', siteId],
+    queryFn: () => ticketsApi.list({ pageSize: 100 }),
+    enabled: Boolean(siteId),
+    staleTime: 30_000,
+  })
+
   const latestTraffic = useMemo(() => {
     if (!traffic.length) return null
     return traffic[traffic.length - 1] as SiteTraffic
   }, [traffic])
 
   const events = (eventsResponse?.data ?? []) as SiteEvent[]
+  const siteServices = services as Service[]
+  const siteTickets = ((ticketsResponse?.data ?? []) as Ticket[]).filter(
+    (ticket) => (ticket.site_id ?? ticket.siteId) === siteId,
+  )
+  const monthlyCharge = siteServices.reduce((sum, service) => sum + Number(service.monthly_charge ?? 0), 0)
+  const activeServices = siteServices.filter((service) => (service.status ?? '').toUpperCase() === 'ACTIVE').length
 
   useEffect(() => {
     if (siteId) {
@@ -63,7 +91,7 @@ export function CustomerSiteDetailPage() {
     <div className="space-y-5 p-5 animate-fade-in">
       <PageHeader
         title={site?.name ?? 'Site Detail'}
-        subtitle={site?.code ? `Site code: ${site.code}` : 'Operational and service detail for this site'}
+        subtitle={site?.code ? `Site code: ${site.code}` : 'Operational, service, and support detail for this site'}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -72,7 +100,7 @@ export function CustomerSiteDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card title="Service Snapshot">
+        <Card title="Site Snapshot">
           {siteLoading ? (
             <div className="space-y-3">
               <div className="skeleton h-5 w-40 rounded" />
@@ -88,7 +116,9 @@ export function CustomerSiteDetailPage() {
                 ['IP Block', site?.ip_block ?? '—'],
                 ['Go Live', formatDate(site?.go_live_date)],
                 ['Contract End', formatDate(site?.contract_end_date ?? site?.contractExpiry)],
-                ['Devices', String(site?.device_count ?? site?.deviceCount ?? '—')],
+                ['Devices', String(site?.device_count ?? site?.deviceCount ?? devices.length)],
+                ['Active Services', String(activeServices)],
+                ['Monthly Charge', monthlyCharge > 0 ? `₹${monthlyCharge.toLocaleString('en-IN')}` : '—'],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-surface-2)' }}>
                   <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</p>
@@ -117,6 +147,50 @@ export function CustomerSiteDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Card title="Service Inventory">
+          <div className="space-y-2">
+            {siteServices.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No services mapped to this site yet.</p>
+            ) : (
+              siteServices.map((service) => (
+                <div key={service.id} className="rounded-lg border px-3 py-3" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {service.service_id ?? service.circuit_id ?? service.id}
+                      </p>
+                      <p className="mt-1 font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                        {[service.service_type, service.pop, service.last_mile].filter(Boolean).join(' • ') || 'Managed service'}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono" style={{ color: 'var(--brand)' }}>{service.status ?? '—'}</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="rounded-md bg-surface-2 px-2 py-1">
+                      <p className="text-dim">Bandwidth</p>
+                      <p className="mt-0.5 font-mono text-white">{service.bandwidth_mbps ?? 0} Mbps</p>
+                    </div>
+                    <div className="rounded-md bg-surface-2 px-2 py-1">
+                      <p className="text-dim">Monthly</p>
+                      <p className="mt-0.5 font-mono text-white">
+                        {service.monthly_charge ? `₹${Number(service.monthly_charge).toLocaleString('en-IN')}` : '—'}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-surface-2 px-2 py-1">
+                      <p className="text-dim">Static IP</p>
+                      <p className="mt-0.5 font-mono text-white">{service.static_ip ?? service.ip_block ?? '—'}</p>
+                    </div>
+                    <div className="rounded-md bg-surface-2 px-2 py-1">
+                      <p className="text-dim">Contract End</p>
+                      <p className="mt-0.5 font-mono text-white">{formatDate(service.contract_end_date)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
         <Card title="Connected Devices">
           <div className="space-y-2">
             {(devices as SiteDevice[]).length === 0 ? (
@@ -132,6 +206,31 @@ export function CustomerSiteDetailPage() {
                   </div>
                   <span className="text-[10px] font-mono" style={{ color: 'var(--brand)' }}>{device.status}</span>
                 </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card title="Site Tickets">
+          <div className="space-y-2">
+            {siteTickets.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No tickets logged against this site yet.</p>
+            ) : (
+              siteTickets.slice(0, 6).map((ticket) => (
+                <Link
+                  key={ticket.id}
+                  to={`/portal/tickets/${ticket.id}`}
+                  className="block rounded-lg border px-3 py-3 transition-colors hover:bg-surface-2"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{ticket.title ?? ticket.subject}</p>
+                    <span className="text-[10px] font-mono" style={{ color: 'var(--brand)' }}>{ticket.priority}</span>
+                  </div>
+                  <p className="mt-1 text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                    {ticket.status} • {formatDate(ticket.created_at ?? ticket.createdAt)}
+                  </p>
+                </Link>
               ))
             )}
           </div>

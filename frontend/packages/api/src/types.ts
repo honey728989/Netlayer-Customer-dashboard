@@ -104,6 +104,8 @@ export interface SiteDevice {
   vendor?: string
   model?: string
   uptime?: string
+  last_seen_at?: string
+  created_at?: string
 }
 
 export interface SiteEvent {
@@ -319,10 +321,14 @@ export interface Service {
   pop?: string
   last_mile?: string
   ip_block?: string
+  static_ip?: string
   status?: string
   activation_date?: string
   contract_end_date?: string
+  contract_months?: number
   monthly_charge?: number
+  notes?: string
+  metadata?: Record<string, unknown>
   site_name?: string
   city?: string
   state?: string

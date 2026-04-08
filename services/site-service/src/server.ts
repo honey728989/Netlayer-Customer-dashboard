@@ -449,6 +449,63 @@ const routes: FastifyPluginAsync = async (app) => {
 
     return result.rows;
   });
+
+  app.get("/sites/:id/devices", { preHandler: [requireAuth] }, async (request) => {
+    const params = request.params as { id: string };
+    const result = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          id,
+          hostname,
+          ip_address,
+          vendor,
+          model,
+          status,
+          device_type AS type,
+          last_seen_at,
+          created_at
+        FROM devices
+        WHERE site_id = $1
+        ORDER BY hostname
+      `,
+      [params.id]
+    );
+
+    return result.rows;
+  });
+
+  app.get("/sites/:id/events", { preHandler: [requireAuth] }, async (request) => {
+    const params = request.params as { id: string };
+    const result = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          a.id,
+          COALESCE(a.resolved_at, a.acknowledged_at, a.created_at)::text AS timestamp,
+          CASE
+            WHEN a.priority IN ('P1', 'P2') THEN 'critical'
+            WHEN a.priority = 'P3' THEN 'warning'
+            ELSE 'info'
+          END AS severity,
+          a.message,
+          a.source
+        FROM alerts a
+        WHERE a.site_id = $1
+        ORDER BY a.created_at DESC
+        LIMIT 20
+      `,
+      [params.id]
+    );
+
+    return {
+      data: result.rows,
+      total: result.rows.length,
+      page: 1,
+      pageSize: result.rows.length,
+      totalPages: 1
+    };
+  });
 };
 
 export async function buildSiteApp(env: ServiceEnv) {
