@@ -172,6 +172,10 @@ export function CustomerDashboard() {
             <a href="/portal/heatmap" className="btn-ghost text-[11px] flex-1 justify-center">Heat Map</a>
             <a href="/portal/feasibility" className="btn-ghost text-[11px] flex-1 justify-center">Feasibility</a>
           </div>
+          <div className="flex gap-2">
+            <a href="/portal/services" className="btn-ghost text-[11px] flex-1 justify-center">Services</a>
+            <a href="/portal/tickets/new" className="btn-ghost text-[11px] flex-1 justify-center">Raise Ticket</a>
+          </div>
         </div>
       </div>
 

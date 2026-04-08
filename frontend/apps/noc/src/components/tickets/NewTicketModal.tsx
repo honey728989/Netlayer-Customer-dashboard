@@ -12,9 +12,9 @@ interface NewTicketModalProps {
 export function NewTicketModal({ onClose, defaultCustomerId, defaultSiteId }: NewTicketModalProps) {
   const { mutate: createTicket, isPending } = useCreateTicket()
   const [form, setForm] = useState({
-    subject: '',
+    title: '',
     description: '',
-    priority: 'medium' as TicketPriority,
+    priority: 'P3' as TicketPriority,
     customerId: defaultCustomerId ?? '',
     siteId: defaultSiteId ?? '',
   })
@@ -22,7 +22,7 @@ export function NewTicketModal({ onClose, defaultCustomerId, defaultSiteId }: Ne
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     createTicket(
-      { subject: form.subject, description: form.description, priority: form.priority, customerId: form.customerId, siteId: form.siteId || undefined },
+      { title: form.title, description: form.description, priority: form.priority, customerId: form.customerId, siteId: form.siteId || undefined, source: 'PORTAL' },
       { onSuccess: onClose },
     )
   }
@@ -45,8 +45,8 @@ export function NewTicketModal({ onClose, defaultCustomerId, defaultSiteId }: Ne
             </label>
             <input
               required
-              value={form.subject}
-              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               className="input-field"
               placeholder="Brief description of the issue"
             />
@@ -62,10 +62,10 @@ export function NewTicketModal({ onClose, defaultCustomerId, defaultSiteId }: Ne
                 onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as TicketPriority }))}
                 className="input-field"
               >
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="P1">P1 - Critical</option>
+                <option value="P2">P2 - High</option>
+                <option value="P3">P3 - Medium</option>
+                <option value="P4">P4 - Low</option>
               </select>
             </div>
             <div>

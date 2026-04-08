@@ -1,12 +1,28 @@
 import { http } from './client'
 import type { Ticket, TicketComment, PaginatedResponse, QueryParams } from './types'
 
+function toPaginated<T>(raw: unknown, params?: QueryParams): PaginatedResponse<T> {
+  if (Array.isArray(raw)) {
+    const data = raw as T[]
+    return {
+      data,
+      total: data.length,
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? data.length,
+      totalPages: 1,
+    }
+  }
+
+  return raw as PaginatedResponse<T>
+}
+
 interface CreateTicketPayload {
-  subject: string
+  title: string
   description: string
   priority: Ticket['priority']
   siteId?: string
   customerId: string
+  source?: string
 }
 
 interface UpdateTicketPayload {
@@ -17,7 +33,7 @@ interface UpdateTicketPayload {
 
 export const ticketsApi = {
   list: (params?: QueryParams) =>
-    http.get<PaginatedResponse<Ticket>>('/tickets', { params }).then((r) => r.data),
+    http.get<PaginatedResponse<Ticket>>('/tickets', { params }).then((r) => toPaginated<Ticket>(r.data, params)),
 
   getById: (id: string) =>
     http.get<Ticket>(`/tickets/${id}`).then((r) => r.data),

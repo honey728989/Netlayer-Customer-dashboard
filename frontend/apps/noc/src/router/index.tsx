@@ -19,8 +19,10 @@ const MonitoringPage = lazy(() => import('@/pages/noc/MonitoringPage').then(m =>
 const ReportsPage    = lazy(() => import('@/pages/noc/ReportsPage').then(m => ({ default: m.ReportsPage })))
 const CustomerDashboardPage = lazy(() => import('../../../portal/src/pages/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })))
 const CustomerHeatMapPage = lazy(() => import('@/pages/portal/CustomerHeatMapPage').then(m => ({ default: m.CustomerHeatMapPage })))
+const CustomerServicesPage = lazy(() => import('@/pages/portal/CustomerServicesPage').then(m => ({ default: m.CustomerServicesPage })))
 const CustomerSitesPage = lazy(() => import('../../../portal/src/pages/CustomerSites').then(m => ({ default: m.CustomerSites })))
 const CustomerTicketsPage = lazy(() => import('../../../portal/src/pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
+const CustomerRaiseTicketPage = lazy(() => import('@/pages/portal/CustomerRaiseTicketPage').then(m => ({ default: m.CustomerRaiseTicketPage })))
 const CustomerBillingPage = lazy(() => import('../../../portal/src/pages/BillingPage').then(m => ({ default: m.BillingPage })))
 const CustomerReportsPage = lazy(() => import('../../../portal/src/pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
 const CustomerFeasibilityPage = lazy(() => import('@/pages/portal/CustomerFeasibilityPage').then(m => ({ default: m.CustomerFeasibilityPage })))
@@ -86,18 +88,9 @@ const router = createBrowserRouter([
               { index: true, element: <Lazy><CustomerDashboardPage /></Lazy> },
               { path: 'heatmap', element: <Lazy><CustomerHeatMapPage /></Lazy> },
               { path: 'sites', element: <Lazy><CustomerSitesPage /></Lazy> },
+              { path: 'services', element: <Lazy><CustomerServicesPage /></Lazy> },
               { path: 'tickets', element: <Lazy><CustomerTicketsPage /></Lazy> },
-              {
-                path: 'tickets/new',
-                element: (
-                  <SharedPlaceholderPage
-                    title="Raise Ticket"
-                    description="Ticket creation form is being aligned with customer workflow and SLA templates. Use the ticket list for current activity."
-                    primaryHref="/portal/tickets"
-                    primaryLabel="Open Tickets"
-                  />
-                ),
-              },
+              { path: 'tickets/new', element: <Lazy><CustomerRaiseTicketPage /></Lazy> },
               { path: 'billing', element: <Lazy><CustomerBillingPage /></Lazy> },
               { path: 'feasibility', element: <Lazy><CustomerFeasibilityPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><CustomerReportsPage /></Lazy> },
