@@ -343,24 +343,40 @@ export interface FeasibilityRequest {
   siteName?: string
   customer_id?: string
   customer_name?: string
+  requested_by_name?: string
+  assigned_engineer_name?: string
   source?: string
   company_name?: string
   contact_name?: string
   contact_email?: string
+  contact_phone?: string
   address?: string
   city?: string
   state?: string
+  pincode?: string
   service_type?: string
   bandwidth_mbps?: number
   redundancy_required?: boolean
   status: string
   survey_date?: string
+  survey_scheduled_for?: string
+  expected_go_live_date?: string
   result_notes?: string
   feasibility_summary?: string
+  estimated_capex?: number
   estimated_mrc?: number
+  survey_notes?: string
   notes?: string
   created_at?: string
-  comments?: Array<{ id: string; body: string; author_name?: string; is_internal?: boolean; created_at?: string }>
+  comments?: FeasibilityComment[]
+}
+
+export interface FeasibilityComment {
+  id: string
+  body: string
+  author_name?: string
+  is_internal?: boolean
+  created_at?: string
 }
 
 export interface CustomerHeatmapPoint {

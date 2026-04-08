@@ -5,6 +5,7 @@ import type {
   Lead,
   Service,
   FeasibilityRequest,
+  FeasibilityComment,
   CustomerHeatmapPoint,
   BillingLedgerSummary,
   PaymentRecord,
@@ -160,11 +161,17 @@ export const feasibilityApi = {
   getById: (id: string) =>
     http.get<FeasibilityRequest>(`/feasibility/${id}`).then((r) => r.data),
 
+  getComments: (id: string) =>
+    http.get<FeasibilityComment[]>(`/feasibility/${id}/comments`).then((r) => Array.isArray(r.data) ? r.data : []),
+
   create: (payload: Record<string, unknown>) =>
     http.post<FeasibilityRequest>('/feasibility', payload).then((r) => r.data),
 
   updateStatus: (id: string, status: string, notes?: string, surveyDate?: string) =>
-    http.patch<FeasibilityRequest>(`/feasibility/${id}/status`, { status, notes, surveyDate }).then((r) => r.data),
+    http.patch<FeasibilityRequest>(`/feasibility/${id}`, { status, surveyNotes: notes, surveyScheduledFor: surveyDate }).then((r) => r.data),
+
+  addComment: (id: string, body: string, isInternal = false) =>
+    http.post<FeasibilityComment>(`/feasibility/${id}/comments`, { body, isInternal }).then((r) => r.data),
 }
 
 export const leadsApi = {

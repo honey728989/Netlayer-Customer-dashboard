@@ -578,6 +578,59 @@ const routes: FastifyPluginAsync = async (app) => {
     return result.rows;
   });
 
+  app.get("/feasibility/:id", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const result = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          fr.*,
+          c.name AS customer_name,
+          u.full_name AS requested_by_name,
+          fu.full_name AS assigned_engineer_name
+        FROM feasibility_requests fr
+        LEFT JOIN customers c ON c.id = fr.customer_id
+        LEFT JOIN users u ON u.id = fr.requested_by_user_id
+        LEFT JOIN users fu ON fu.id = fr.assigned_engineer_user_id
+        WHERE fr.id = $1
+      `,
+      [params.id]
+    );
+
+    const requestRow = result.rows[0];
+    if (!requestRow) {
+      return reply.code(404).send({ message: "Feasibility request not found" });
+    }
+
+    if (user.customerId && requestRow.customer_id !== user.customerId) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    if (user.roles.includes("FIELD_ENGINEER") && requestRow.assigned_engineer_user_id !== user.userId) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const comments = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          fc.*,
+          u.full_name AS author_name
+        FROM feasibility_comments fc
+        LEFT JOIN users u ON u.id = fc.author_user_id
+        WHERE fc.feasibility_request_id = $1
+        ORDER BY fc.created_at ASC
+      `,
+      [params.id]
+    );
+
+    return {
+      ...requestRow,
+      comments: comments.rows
+    };
+  });
+
   app.post("/feasibility", { preHandler: [requireAuth] }, async (request, reply) => {
     const body = request.body as {
       customerId?: string;
@@ -731,6 +784,19 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.get("/feasibility/:id/comments", { preHandler: [requireAuth] }, async (request) => {
     const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId) {
+      const ownership = await query<{ customer_id: string | null }>(
+        process.env.DATABASE_URL!,
+        `SELECT customer_id FROM feasibility_requests WHERE id = $1`,
+        [params.id]
+      );
+
+      if (!ownership.rows[0] || ownership.rows[0].customer_id !== user.customerId) {
+        return [];
+      }
+    }
+
     const result = await query(
       process.env.DATABASE_URL!,
       `
@@ -751,6 +817,19 @@ const routes: FastifyPluginAsync = async (app) => {
   app.post("/feasibility/:id/comments", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const body = request.body as { body: string; isInternal?: boolean };
+    const user = request.auth!;
+    if (user.customerId) {
+      const ownership = await query<{ customer_id: string | null }>(
+        process.env.DATABASE_URL!,
+        `SELECT customer_id FROM feasibility_requests WHERE id = $1`,
+        [params.id]
+      );
+
+      if (!ownership.rows[0] || ownership.rows[0].customer_id !== user.customerId) {
+        return reply.code(403).send({ message: "Forbidden" });
+      }
+    }
+
     const result = await query(
       process.env.DATABASE_URL!,
       `
