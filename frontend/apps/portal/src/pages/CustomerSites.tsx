@@ -4,6 +4,9 @@ import { Globe, Search } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
 import { sitesApi } from '@netlayer/api'
+import { CustomerSiteFilterBar } from '@/components/portal/CustomerSiteFilterBar'
+import { applySiteFilters } from '@/lib/customerSiteFilters'
+import { useCustomerPortalSiteFilterStore } from '@/store'
 import type { Site } from '@netlayer/api'
 
 function SiteStatusDot({ status }: { status: string }) {
@@ -38,6 +41,7 @@ export function CustomerSites() {
   const { user } = useAuthStore()
   const customerId = user?.customerId ?? user?.organizationId ?? ''
   const [search, setSearch] = useState('')
+  const { selectedSiteId, city, status, serviceType, setSelectedSite } = useCustomerPortalSiteFilterStore()
 
   const { data: raw, isLoading } = useQuery({
     queryKey: ['sites', 'list', customerId],
@@ -47,7 +51,8 @@ export function CustomerSites() {
   })
 
   const siteList = (Array.isArray(raw) ? raw : (raw as any)?.data ?? []) as Site[]
-  const filtered = siteList.filter((site) =>
+  const filteredByPortal = applySiteFilters(siteList, { selectedSiteId, city, status, serviceType })
+  const filtered = filteredByPortal.filter((site) =>
     !search ||
     site.name?.toLowerCase().includes(search.toLowerCase()) ||
     (site.city ?? '').toLowerCase().includes(search.toLowerCase()),
@@ -89,6 +94,8 @@ export function CustomerSites() {
           })}
         </div>
       </div>
+
+      <CustomerSiteFilterBar sites={siteList} />
 
       <div className="relative w-64">
         <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-dim)' }} />
@@ -166,7 +173,12 @@ export function CustomerSites() {
                       {site.ip_block ?? '—'}
                     </td>
                     <td className="table-td text-right">
-                      <Link to={`/portal/sites/${site.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>
+                      <Link
+                        to={`/portal/sites/${site.id}`}
+                        onClick={() => setSelectedSite(site.id, site.name)}
+                        className="text-[11px] hover:underline"
+                        style={{ color: 'var(--brand)' }}
+                      >
                         View
                       </Link>
                     </td>

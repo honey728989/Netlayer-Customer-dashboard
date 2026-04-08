@@ -2,6 +2,9 @@ import { Activity, Globe, Ticket as TicketIcon, TrendingUp, AlertTriangle, Credi
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
 import { customersApi, sitesApi, ticketsApi, alertsApi } from '@netlayer/api'
+import { CustomerSiteFilterBar } from '@/components/portal/CustomerSiteFilterBar'
+import { applySiteFilters, applyTicketFilters } from '@/lib/customerSiteFilters'
+import { useCustomerPortalSiteFilterStore } from '@/store'
 import { formatDistanceToNow } from 'date-fns'
 import type { Site, Ticket } from '@netlayer/api'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -62,6 +65,7 @@ function SiteStatusDot({ status }: { status: string }) {
 export function CustomerDashboard() {
   const { user } = useAuthStore()
   const customerId = user?.customerId ?? user?.organizationId ?? ''
+  const { selectedSiteId, city, status, serviceType } = useCustomerPortalSiteFilterStore()
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ['customer', customerId, 'overview'],
@@ -91,10 +95,11 @@ export function CustomerDashboard() {
   })
 
   const siteList = (Array.isArray(sites) ? sites : (sites as any)?.data ?? []) as Site[]
-  const tickets = (ticketsData?.data ?? []) as Ticket[]
-  const onlineSites = siteList.filter((site) => site.status === 'UP' || site.status === 'online').length
-  const totalSites = siteList.length
-  const uptimePct = totalSites ? Math.round((onlineSites / totalSites) * 1000) / 10 : 0
+  const filteredSites = applySiteFilters(siteList, { selectedSiteId, city, status, serviceType })
+  const tickets = applyTicketFilters((ticketsData?.data ?? []) as Ticket[], { selectedSiteId })
+  const totalSites = filteredSites.length
+  const onlineFilteredSites = filteredSites.filter((site) => site.status === 'UP' || site.status === 'online').length
+  const uptimePct = totalSites ? Math.round((onlineFilteredSites / totalSites) * 1000) / 10 : 0
 
   const bandwidthTrend = Array.from({ length: 7 }, (_, index) => ({
     day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index],
@@ -127,10 +132,12 @@ export function CustomerDashboard() {
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard label="SLA Uptime" value={`${uptimePct}%`} sub={uptimePct >= 99.5 ? 'Meeting SLA' : 'Below SLA target'} icon={Activity} accent="var(--status-online)" loading={sitesLoading} />
-        <StatCard label="Total Sites" value={totalSites} sub={`${onlineSites} online · ${totalSites - onlineSites} offline`} icon={Globe} accent="var(--brand)" loading={sitesLoading} />
+        <StatCard label="Total Sites" value={totalSites} sub={`${onlineFilteredSites} online · ${totalSites - onlineFilteredSites} offline`} icon={Globe} accent="var(--brand)" loading={sitesLoading} />
         <StatCard label="Open Tickets" value={tickets.length} sub={alertCount?.critical ? `${alertCount.critical} critical alerts` : 'No critical alerts'} icon={TicketIcon} accent="var(--status-info)" loading={ticketsLoading} />
         <StatCard label="Monthly Billing" value={mrr ? INR(mrr) : '—'} sub={`${customer?.sla_profile ?? ''} plan`} icon={CreditCard} accent="var(--status-degraded)" loading={overviewLoading} />
       </div>
+
+      <CustomerSiteFilterBar sites={siteList} />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <div className="xl:col-span-2 card p-4">
@@ -213,7 +220,7 @@ export function CustomerDashboard() {
                 ) : siteList.length === 0 ? (
                   <tr><td colSpan={3} className="py-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>No sites found</td></tr>
                 ) : (
-                  siteList.slice(0, 5).map((site) => (
+                  filteredSites.slice(0, 5).map((site) => (
                     <tr key={site.id} className="table-row">
                       <td className="table-td">
                         <div className="flex items-center gap-2">

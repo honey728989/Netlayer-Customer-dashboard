@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
-import { customersApi, type CustomerHeatmapPoint } from '@netlayer/api'
+import { customersApi, type CustomerHeatmapPoint, type Site } from '@netlayer/api'
+import { CustomerSiteFilterBar } from '@/components/portal/CustomerSiteFilterBar'
+import { applyHeatmapFilters } from '@/lib/customerSiteFilters'
+import { useCustomerPortalSiteFilterStore } from '@/store'
 import { Card, EmptyState, ErrorState, KpiCard, PageHeader, StatusPill } from '@netlayer/ui'
 
 function getHealthScore(point: CustomerHeatmapPoint) {
@@ -28,6 +32,7 @@ function getHeatTone(score: number) {
 export function CustomerHeatMapPage() {
   const { user } = useAuthStore()
   const customerId = user?.customerId ?? user?.organizationId ?? ''
+  const { selectedSiteId, city, status, setSelectedSite } = useCustomerPortalSiteFilterStore()
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['customers', customerId, 'heatmap'],
@@ -37,7 +42,15 @@ export function CustomerHeatMapPage() {
     refetchInterval: 60_000,
   })
 
-  const points = data ?? []
+  const points = applyHeatmapFilters(data ?? [], { selectedSiteId, city, status })
+  const filterSites = (data ?? []).map((point) => ({
+    id: point.siteId,
+    name: point.siteName,
+    city: point.city ?? undefined,
+    state: point.state ?? undefined,
+    status: point.status,
+    type: undefined,
+  })) as Site[]
 
   const summary = useMemo(() => {
     const online = points.filter((point) => ['UP', 'ONLINE', 'online'].includes(point.status)).length
@@ -68,7 +81,9 @@ export function CustomerHeatMapPage() {
       {isError ? (
         <ErrorState message="Failed to load heat map data." onRetry={() => void refetch()} />
       ) : (
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <div className="space-y-5">
+          <CustomerSiteFilterBar sites={filterSites} />
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.6fr_1fr]">
           <Card
             title="Operational Heat Grid"
             action={<span className="text-[11px] text-muted">Live customer footprint</span>}
@@ -91,10 +106,13 @@ export function CustomerHeatMapPage() {
                   const tone = getHeatTone(score)
 
                   return (
-                    <div
+                    <Link
                       key={point.siteId}
+                      to={`/portal/sites/${point.siteId}`}
+                      onClick={() => setSelectedSite(point.siteId, point.siteName)}
                       className="rounded-lg p-3 transition-transform hover:-translate-y-0.5"
                       style={{
+                        display: 'block',
                         backgroundColor: `color-mix(in srgb, ${tone} 12%, var(--bg-surface))`,
                         border: `1px solid color-mix(in srgb, ${tone} 22%, var(--border))`,
                       }}
@@ -134,7 +152,7 @@ export function CustomerHeatMapPage() {
                           <p className="mt-0.5 font-mono text-white">{point.serviceCount}</p>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>
@@ -179,6 +197,7 @@ export function CustomerHeatMapPage() {
               </div>
             )}
           </Card>
+          </div>
         </div>
       )}
     </div>

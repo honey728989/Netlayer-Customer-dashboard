@@ -4,8 +4,11 @@ import { Plus, Ticket as TicketIcon } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
-import { ticketsApi } from '@netlayer/api'
-import type { Ticket } from '@netlayer/api'
+import { sitesApi, ticketsApi } from '@netlayer/api'
+import { CustomerSiteFilterBar } from '@/components/portal/CustomerSiteFilterBar'
+import { applyTicketFilters } from '@/lib/customerSiteFilters'
+import { useCustomerPortalSiteFilterStore } from '@/store'
+import type { Site, Ticket } from '@netlayer/api'
 
 const STATUS_COLOR: Record<string, string> = {
   OPEN: 'var(--brand)',
@@ -59,6 +62,14 @@ export function CustomerTickets() {
   const customerId = user?.customerId ?? user?.organizationId ?? ''
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const { selectedSiteId, setSelectedSite, city, status, serviceType } = useCustomerPortalSiteFilterStore()
+
+  const { data: sitesResponse } = useQuery({
+    queryKey: ['sites', 'list', customerId, 'ticket-filter'],
+    queryFn: () => sitesApi.list({ customerId, pageSize: 100 }),
+    enabled: Boolean(customerId),
+    staleTime: 60_000,
+  })
 
   const { data: ticketsData, isLoading } = useQuery({
     queryKey: ['tickets', 'list', customerId, statusFilter],
@@ -73,11 +84,12 @@ export function CustomerTickets() {
     refetchInterval: 60_000,
   })
 
-  const tickets = (ticketsData?.data ?? []) as Ticket[]
+  const tickets = applyTicketFilters((ticketsData?.data ?? []) as Ticket[], { selectedSiteId })
   const filtered = tickets.filter((ticket) =>
     !search ||
     (ticket.title ?? ticket.subject ?? '').toLowerCase().includes(search.toLowerCase()),
   )
+  const sites = (sitesResponse?.data ?? []) as Site[]
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -114,6 +126,13 @@ export function CustomerTickets() {
           ))}
         </div>
       </div>
+
+      <CustomerSiteFilterBar sites={sites.filter((site) => {
+        if (city && (site.city ?? '').toLowerCase() !== city.toLowerCase()) return false
+        if (status && (site.status ?? '').toUpperCase() !== status.toUpperCase()) return false
+        if (serviceType && (site.type ?? '').toUpperCase() !== serviceType.toUpperCase()) return false
+        return true
+      })} />
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
@@ -198,7 +217,12 @@ export function CustomerTickets() {
                         {formatDistanceToNow(new Date(ticket.created_at ?? ticket.createdAt ?? Date.now()), { addSuffix: true })}
                       </td>
                       <td className="table-td text-right">
-                        <Link to={`/portal/tickets/${ticket.id}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>
+                        <Link
+                          to={`/portal/tickets/${ticket.id}`}
+                          onClick={() => setSelectedSite(ticket.site_id ?? ticket.siteId ?? null, ticket.site_name ?? ticket.siteName ?? null)}
+                          className="text-[11px] hover:underline"
+                          style={{ color: 'var(--brand)' }}
+                        >
                           Open
                         </Link>
                       </td>

@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { sitesApi, type SiteDevice, type SiteEvent, type SiteTraffic } from '@netlayer/api'
+import { useCustomerPortalSiteFilterStore } from '@/store'
 import { Card, PageHeader } from '@netlayer/ui'
 
 function formatDate(value?: string) {
@@ -11,6 +12,7 @@ function formatDate(value?: string) {
 
 export function CustomerSiteDetailPage() {
   const { siteId = '' } = useParams()
+  const { setSelectedSite } = useCustomerPortalSiteFilterStore()
 
   const { data: site, isLoading: siteLoading } = useQuery({
     queryKey: ['site', siteId],
@@ -50,6 +52,12 @@ export function CustomerSiteDetailPage() {
   }, [traffic])
 
   const events = (eventsResponse?.data ?? []) as SiteEvent[]
+
+  useEffect(() => {
+    if (siteId) {
+      setSelectedSite(siteId, site?.name ?? null)
+    }
+  }, [setSelectedSite, site?.name, siteId])
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">

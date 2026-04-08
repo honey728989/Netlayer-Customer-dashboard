@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell, LogOut, ChevronDown, Sun, Moon, Settings } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '@netlayer/auth'
-import { useAlertStore, useUIStore } from '@/store'
+import { useAlertStore, useCustomerPortalSiteFilterStore, useUIStore } from '@/store'
 import { authApi } from '@netlayer/api'
 
 const PORTAL_META = {
@@ -52,6 +52,7 @@ function UserInitials({ name }: { name?: string }) {
 export function TopBar() {
   const { user, clearAuth } = useAuthStore()
   const { criticalCount, warningCount } = useAlertStore()
+  const { selectedSiteName } = useCustomerPortalSiteFilterStore()
   const { theme, setTheme } = useUIStore()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -92,7 +93,9 @@ export function TopBar() {
           {portalMeta.label}
         </p>
         <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
-          {user?.organizationName || 'Netlayer Operations'}
+          {role === 'customer' && selectedSiteName
+            ? `${user?.organizationName || 'Customer Network'} • ${selectedSiteName}`
+            : user?.organizationName || 'Netlayer Operations'}
         </p>
       </div>
 

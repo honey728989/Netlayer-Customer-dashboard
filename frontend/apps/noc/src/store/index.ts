@@ -152,3 +152,39 @@ export const useSiteStatusStore = create<SiteStatusState>((set) => ({
       },
     })),
 }))
+
+// Customer multi-site selection state
+interface CustomerPortalSiteFilterState {
+  selectedSiteId: string | null
+  selectedSiteName: string | null
+  city: string
+  status: string
+  serviceType: string
+  setSelectedSite: (siteId: string | null, siteName?: string | null) => void
+  setCity: (city: string) => void
+  setStatus: (status: string) => void
+  setServiceType: (serviceType: string) => void
+  resetFilters: () => void
+}
+
+export const useCustomerPortalSiteFilterStore = create<CustomerPortalSiteFilterState>((set) => ({
+  selectedSiteId: null,
+  selectedSiteName: null,
+  city: '',
+  status: '',
+  serviceType: '',
+
+  setSelectedSite: (selectedSiteId, selectedSiteName = null) =>
+    set({ selectedSiteId, selectedSiteName }),
+  setCity: (city) => set({ city }),
+  setStatus: (status) => set({ status }),
+  setServiceType: (serviceType) => set({ serviceType }),
+  resetFilters: () =>
+    set({
+      selectedSiteId: null,
+      selectedSiteName: null,
+      city: '',
+      status: '',
+      serviceType: '',
+    }),
+}))
