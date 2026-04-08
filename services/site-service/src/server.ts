@@ -2537,6 +2537,115 @@ const routes: FastifyPluginAsync = async (app) => {
     return result.rows;
   });
 
+  app.post("/sites/:id/services", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const body = request.body as {
+      serviceId?: string;
+      circuitId?: string;
+      serviceType?: string;
+      bandwidthMbps?: number;
+      pop?: string;
+      lastMile?: string;
+      ipBlock?: string;
+      status?: string;
+      activationDate?: string;
+      contractEndDate?: string;
+      contractMonths?: number;
+      monthlyCharge?: number;
+    };
+
+    const siteResult = await query<{
+      id: string;
+      customer_id: string;
+      code: string | null;
+      pop: string | null;
+      last_mile_provider: string | null;
+      ip_block: string | null;
+      go_live_date: string | null;
+      contract_end_date: string | null;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT id, customer_id, code, pop, last_mile_provider, ip_block, go_live_date::text, contract_end_date::text
+        FROM sites
+        WHERE id = $1
+      `,
+      [params.id]
+    );
+
+    const site = siteResult.rows[0];
+    if (!site) {
+      return reply.code(404).send({ message: "Site not found" });
+    }
+
+    if (user.customerId) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    if (!body.serviceType || typeof body.bandwidthMbps !== "number" || body.bandwidthMbps <= 0) {
+      return reply.code(400).send({ message: "serviceType and bandwidthMbps are required" });
+    }
+
+    const serviceId =
+      body.serviceId?.trim() ||
+      `SVC-${(site.code ?? site.id.slice(0, 6)).replace(/[^A-Za-z0-9]/g, "").toUpperCase()}-${body.serviceType.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase()}`;
+    const circuitId =
+      body.circuitId?.trim() ||
+      `CKT-${site.id.slice(0, 8).toUpperCase()}`;
+
+    const inserted = await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO services (
+          customer_id,
+          site_id,
+          service_id,
+          circuit_id,
+          service_type,
+          bandwidth_mbps,
+          pop,
+          last_mile,
+          ip_block,
+          status,
+          activation_date,
+          contract_end_date,
+          contract_months,
+          monthly_charge,
+          metadata
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+        RETURNING *
+      `,
+      [
+        site.customer_id,
+        site.id,
+        serviceId,
+        circuitId,
+        body.serviceType.trim(),
+        body.bandwidthMbps,
+        body.pop?.trim() || site.pop || null,
+        body.lastMile?.trim() || site.last_mile_provider || null,
+        body.ipBlock?.trim() || site.ip_block || null,
+        body.status?.trim() || "ACTIVE",
+        body.activationDate?.trim() || site.go_live_date || null,
+        body.contractEndDate?.trim() || site.contract_end_date || null,
+        body.contractMonths ?? 12,
+        body.monthlyCharge ?? 0,
+        JSON.stringify({ provisionedFrom: "admin-onboarding-wizard" })
+      ]
+    );
+
+    await writeAuditLog(user.userId, "service", inserted.rows[0].id, "service.created", {
+      customerId: site.customer_id,
+      siteId: site.id,
+      serviceId
+    });
+
+    reply.code(201);
+    return inserted.rows[0];
+  });
+
   app.get("/sites/:id/devices", { preHandler: [requireAuth] }, async (request) => {
     const params = request.params as { id: string };
     const user = request.auth!;

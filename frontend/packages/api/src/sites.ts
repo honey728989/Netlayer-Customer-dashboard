@@ -1,5 +1,5 @@
 import { http } from './client'
-import type { Site, SiteCreatePayload, SiteDevice, SiteDeviceCreatePayload, SiteEvent, SiteGrafanaEmbed, SiteTraffic, Service, PaginatedResponse, QueryParams } from './types'
+import type { Site, SiteCreatePayload, SiteDevice, SiteDeviceCreatePayload, SiteEvent, SiteGrafanaEmbed, SiteTraffic, Service, ServiceCreatePayload, PaginatedResponse, QueryParams } from './types'
 
 function toPaginated<T>(raw: unknown, params?: QueryParams): PaginatedResponse<T> {
   if (Array.isArray(raw)) {
@@ -31,6 +31,9 @@ export const sitesApi = {
 
   getServices: (id: string) =>
     http.get<Service[]>(`/sites/${id}/services`).then((r) => r.data),
+
+  createService: (id: string, payload: ServiceCreatePayload) =>
+    http.post<Service>(`/sites/${id}/services`, payload).then((r) => r.data),
 
   getDevices: (id: string) =>
     http.get<SiteDevice[]>(`/sites/${id}/devices`).then((r) => r.data),

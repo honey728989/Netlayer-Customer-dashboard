@@ -457,6 +457,21 @@ export interface Service {
   state?: string
 }
 
+export interface ServiceCreatePayload {
+  serviceId?: string
+  circuitId?: string
+  serviceType: string
+  bandwidthMbps: number
+  pop?: string
+  lastMile?: string
+  ipBlock?: string
+  status?: string
+  activationDate?: string
+  contractEndDate?: string
+  contractMonths?: number
+  monthlyCharge?: number
+}
+
 // ─── Feasibility ─────────────────────────────────────────────────────────────
 
 export interface FeasibilityRequest {
