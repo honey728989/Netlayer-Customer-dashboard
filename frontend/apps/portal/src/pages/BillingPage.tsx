@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Download, ExternalLink, CreditCard, Calendar, TrendingUp, Wallet, Link2, Building2, Layers3 } from 'lucide-react'
 import { useAuthStore } from '@netlayer/auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { customersApi, type PaymentRecord, type SiteBillingSummary } from '@netlayer/api'
+import { customersApi, type BillingInvoice, type PaymentRecord, type SiteBillingSummary } from '@netlayer/api'
 import { useCustomerPortalSiteFilterStore } from '../../../noc/src/store'
 
 const INR = (value: number) =>
@@ -13,21 +14,6 @@ const STATUS_COLOR: Record<string, string> = {
   UNPAID: 'var(--brand)',
   OVERDUE: 'var(--status-offline)',
   REQUESTED: 'var(--status-info)',
-}
-
-interface Invoice {
-  id: string
-  invoice_number?: string
-  invoiceNumber?: string
-  invoice_date?: string
-  date?: string
-  due_date?: string
-  dueDate?: string
-  total_amount?: number
-  amount?: number
-  status: string
-  pdf_url?: string
-  pdfUrl?: string
 }
 
 export function BillingPage() {
@@ -65,7 +51,7 @@ export function BillingPage() {
     staleTime: 60_000,
   })
 
-  const invoices: Invoice[] = (billing as any)?.invoices ?? (Array.isArray(billing) ? billing : [])
+  const invoices: BillingInvoice[] = (billing as any)?.invoices ?? (Array.isArray(billing) ? billing : [])
   const summary = (billing as any)?.summary ?? {}
   const outstanding = Number(summary.outstanding ?? ledger?.outstandingAmount ?? 0)
   const totalPaidYtd = Number(summary.totalPaidYtd ?? summary.total_paid_ytd ?? ledger?.collectedAmount ?? 0)
@@ -391,7 +377,7 @@ export function BillingPage() {
                   <th className="table-th">Due Date</th>
                   <th className="table-th">Amount</th>
                   <th className="table-th">Status</th>
-                  <th className="table-th w-20"></th>
+                  <th className="table-th w-32"></th>
                 </tr>
               </thead>
               <tbody>
@@ -447,11 +433,16 @@ export function BillingPage() {
                           </span>
                         </td>
                         <td className="table-td">
-                          {pdfUrl ? (
-                            <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost py-1 gap-1 text-[11px]">
-                              <Download size={11} /> PDF
-                            </a>
-                          ) : null}
+                          <div className="flex justify-end gap-2">
+                            <Link to={`/portal/billing/${invoice.id}`} className="btn-ghost py-1 gap-1 text-[11px]">
+                              Detail
+                            </Link>
+                            {pdfUrl ? (
+                              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost py-1 gap-1 text-[11px]">
+                                <Download size={11} /> PDF
+                              </a>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     )

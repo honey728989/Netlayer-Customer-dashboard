@@ -9,9 +9,11 @@ import type {
   FeasibilityComment,
   CustomerHeatmapPoint,
   BillingLedgerSummary,
+  BillingInvoiceDetail,
   PaymentRecord,
   SiteBillingSummary,
   CustomerPortalUser,
+  CustomerPortalUserPayload,
   CustomerSiteGroup,
   CustomerSiteAccessRow,
   Commission,
@@ -142,6 +144,9 @@ export const customersApi = {
   getBilling: (id: string) =>
     http.get(`/customers/${id}/billing`).then((r) => r.data),
 
+  getInvoiceDetail: (id: string, invoiceId: string) =>
+    http.get<BillingInvoiceDetail>(`/customers/${id}/billing/${invoiceId}`).then((r) => r.data),
+
   getContacts: (id: string) =>
     http.get<CustomerContact[]>(`/customers/${id}/contacts`).then((r) => Array.isArray(r.data) ? r.data : []),
 
@@ -156,6 +161,12 @@ export const customersApi = {
 
   getPortalUsers: (id: string) =>
     http.get<CustomerPortalUser[]>(`/customers/${id}/portal-users`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  createPortalUser: (id: string, payload: CustomerPortalUserPayload) =>
+    http.post<CustomerPortalUser>(`/customers/${id}/portal-users`, payload).then((r) => r.data),
+
+  updatePortalUser: (id: string, userId: string, payload: Partial<CustomerPortalUserPayload>) =>
+    http.patch<CustomerPortalUser>(`/customers/${id}/portal-users/${userId}`, payload).then((r) => r.data),
 
   getSiteGroups: (id: string) =>
     http.get<CustomerSiteGroup[]>(`/customers/${id}/site-groups`).then((r) => Array.isArray(r.data) ? r.data : []),

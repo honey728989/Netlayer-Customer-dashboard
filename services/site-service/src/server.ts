@@ -4,6 +4,14 @@ import { ServiceEnv, createServiceApp, query, requireAuth } from "@netlayer/plat
 import { buildCustomerDashboardUrl } from "./grafana";
 
 const routes: FastifyPluginAsync = async (app) => {
+  const canManageCustomerWorkspace = (user: any, customerId: string) =>
+    Boolean(
+      user &&
+        ((!user.customerId &&
+          user.roles?.some((role: string) => role === "SUPER_ADMIN" || role === "NOC_ENGINEER")) ||
+          (user.customerId === customerId &&
+            user.roles?.some((role: string) => role === "ENTERPRISE_ADMIN" || role === "SUPER_ADMIN")))
+    );
   // ─── Dashboard / Stats ──────────────────────────────────────────────────────
 
   app.get("/sites/stats", { preHandler: [requireAuth] }, async (request) => {
@@ -391,6 +399,279 @@ const routes: FastifyPluginAsync = async (app) => {
         createdAt: row.created_at
       };
     });
+  });
+
+  app.post("/customers/:id/portal-users", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      email?: string;
+      fullName?: string;
+      password?: string;
+      role?: "ENTERPRISE_ADMIN" | "ENTERPRISE_USER";
+      scopeMode?: "ALL_SITES" | "SELECTED_SITES";
+      accessLevels?: string[];
+      siteIds?: string[];
+      isActive?: boolean;
+    };
+
+    if (!body.email || !body.fullName || !body.password || !body.role) {
+      return reply.code(400).send({ message: "email, fullName, password, and role are required" });
+    }
+
+    const normalizedEmail = body.email.trim().toLowerCase();
+    const accessLevels = Array.from(new Set((body.accessLevels ?? []).filter(Boolean)));
+    const siteIds = Array.from(new Set((body.siteIds ?? []).filter(Boolean)));
+    const scopeMode = body.scopeMode ?? "ALL_SITES";
+
+    const existing = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id FROM users WHERE email = $1`,
+      [normalizedEmail]
+    );
+
+    if (existing.rows[0]) {
+      return reply.code(409).send({ message: "A user with this email already exists" });
+    }
+
+    const customer = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id FROM customers WHERE id = $1`,
+      [params.id]
+    );
+
+    if (!customer.rows[0]) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const inserted = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO users (customer_id, email, full_name, password_hash, is_active)
+        VALUES ($1, $2, $3, crypt($4, gen_salt('bf')), $5)
+        RETURNING id
+      `,
+      [params.id, normalizedEmail, body.fullName.trim(), body.password, body.isActive ?? true]
+    );
+
+    const createdUserId = inserted.rows[0]?.id;
+    if (!createdUserId) {
+      return reply.code(500).send({ message: "Failed to create portal user" });
+    }
+
+    await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO user_roles (user_id, role_id)
+        SELECT $1, id
+        FROM roles
+        WHERE name = $2
+        ON CONFLICT DO NOTHING
+      `,
+      [createdUserId, body.role]
+    );
+
+    if (scopeMode === "SELECTED_SITES" && siteIds.length > 0) {
+      await query(
+        process.env.DATABASE_URL!,
+        `
+          INSERT INTO customer_user_site_access (user_id, site_id, access_level)
+          SELECT $1, s.id, $3
+          FROM unnest($2::uuid[]) AS scoped(site_id)
+          JOIN sites s ON s.id = scoped.site_id AND s.customer_id = $4
+          ON CONFLICT (user_id, site_id) DO UPDATE SET access_level = EXCLUDED.access_level
+        `,
+        [createdUserId, siteIds, accessLevels[0] ?? "OPERATIONS", params.id]
+      );
+    }
+
+    reply.code(201);
+    const createdUser = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          u.id,
+          u.email,
+          u.full_name,
+          u.is_active,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.name), NULL) AS roles,
+          COUNT(DISTINCT cusa.site_id)::text AS assigned_sites,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT cusa.access_level), NULL) AS access_levels,
+          CASE WHEN COUNT(DISTINCT cusa.site_id) = 0 THEN 'ALL_SITES' ELSE 'SELECTED_SITES' END AS scope_mode,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT s.name), NULL) AS site_names,
+          u.created_at::text AS created_at
+        FROM users u
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        LEFT JOIN customer_user_site_access cusa ON cusa.user_id = u.id
+        LEFT JOIN sites s ON s.id = cusa.site_id
+        WHERE u.id = $1
+        GROUP BY u.id
+      `,
+      [createdUserId]
+    );
+
+    const row = createdUser.rows[0] as any;
+    return {
+      id: row.id,
+      email: row.email,
+      fullName: row.full_name,
+      isActive: row.is_active,
+      roles: row.roles ?? [],
+      accessLevels: row.access_levels ?? [],
+      scopeMode: row.scope_mode,
+      assignedSites: Number(row.assigned_sites ?? 0),
+      siteNames: row.site_names ?? [],
+      accessProfile: body.role === "ENTERPRISE_ADMIN" ? "Customer Admin" : (accessLevels[0] ?? "Customer User"),
+      createdAt: row.created_at
+    };
+  });
+
+  app.patch("/customers/:id/portal-users/:userId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string; userId: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      fullName?: string;
+      role?: "ENTERPRISE_ADMIN" | "ENTERPRISE_USER";
+      scopeMode?: "ALL_SITES" | "SELECTED_SITES";
+      accessLevels?: string[];
+      siteIds?: string[];
+      isActive?: boolean;
+    };
+
+    const targetUser = await query<{ id: string; customer_id: string | null }>(
+      process.env.DATABASE_URL!,
+      `SELECT id, customer_id FROM users WHERE id = $1`,
+      [params.userId]
+    );
+
+    if (!targetUser.rows[0] || targetUser.rows[0].customer_id !== params.id) {
+      return reply.code(404).send({ message: "Portal user not found" });
+    }
+
+    await query(
+      process.env.DATABASE_URL!,
+      `
+        UPDATE users
+        SET
+          full_name = COALESCE($2, full_name),
+          is_active = COALESCE($3, is_active),
+          updated_at = NOW()
+        WHERE id = $1
+      `,
+      [params.userId, body.fullName?.trim() || null, typeof body.isActive === "boolean" ? body.isActive : null]
+    );
+
+    if (body.role) {
+      await query(
+        process.env.DATABASE_URL!,
+        `
+          DELETE FROM user_roles
+          WHERE user_id = $1
+            AND role_id IN (
+              SELECT id FROM roles WHERE name IN ('ENTERPRISE_ADMIN', 'ENTERPRISE_USER')
+            )
+        `,
+        [params.userId]
+      );
+
+      await query(
+        process.env.DATABASE_URL!,
+        `
+          INSERT INTO user_roles (user_id, role_id)
+          SELECT $1, id
+          FROM roles
+          WHERE name = $2
+          ON CONFLICT DO NOTHING
+        `,
+        [params.userId, body.role]
+      );
+    }
+
+    if (body.scopeMode === "ALL_SITES") {
+      await query(
+        process.env.DATABASE_URL!,
+        `DELETE FROM customer_user_site_access WHERE user_id = $1`,
+        [params.userId]
+      );
+    } else if (body.scopeMode === "SELECTED_SITES") {
+      const siteIds = Array.from(new Set((body.siteIds ?? []).filter(Boolean)));
+      await query(
+        process.env.DATABASE_URL!,
+        `DELETE FROM customer_user_site_access WHERE user_id = $1`,
+        [params.userId]
+      );
+
+      if (siteIds.length > 0) {
+        await query(
+          process.env.DATABASE_URL!,
+          `
+            INSERT INTO customer_user_site_access (user_id, site_id, access_level)
+            SELECT $1, s.id, $3
+            FROM unnest($2::uuid[]) AS scoped(site_id)
+            JOIN sites s ON s.id = scoped.site_id AND s.customer_id = $4
+            ON CONFLICT (user_id, site_id) DO UPDATE SET access_level = EXCLUDED.access_level
+          `,
+          [params.userId, siteIds, body.accessLevels?.[0] ?? "OPERATIONS", params.id]
+        );
+      }
+    }
+
+    const updatedUser = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          u.id,
+          u.email,
+          u.full_name,
+          u.is_active,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.name), NULL) AS roles,
+          COUNT(DISTINCT cusa.site_id)::text AS assigned_sites,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT cusa.access_level), NULL) AS access_levels,
+          CASE WHEN COUNT(DISTINCT cusa.site_id) = 0 THEN 'ALL_SITES' ELSE 'SELECTED_SITES' END AS scope_mode,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT s.name), NULL) AS site_names,
+          u.created_at::text AS created_at
+        FROM users u
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        LEFT JOIN customer_user_site_access cusa ON cusa.user_id = u.id
+        LEFT JOIN sites s ON s.id = cusa.site_id
+        WHERE u.id = $1
+        GROUP BY u.id
+      `,
+      [params.userId]
+    );
+
+    const row = updatedUser.rows[0] as any;
+    const roles = row.roles ?? [];
+    const accessLevels = row.access_levels ?? [];
+    let accessProfile = "Customer User";
+    if (roles.includes("ENTERPRISE_ADMIN")) accessProfile = "Customer Admin";
+    else if (accessLevels.includes("FINANCE")) accessProfile = "Finance User";
+    else if (row.scope_mode === "SELECTED_SITES" && Number(row.assigned_sites) <= 2) accessProfile = "Branch Manager";
+    else if (accessLevels.includes("OPERATIONS")) accessProfile = "Operations User";
+
+    return {
+      id: row.id,
+      email: row.email,
+      fullName: row.full_name,
+      isActive: row.is_active,
+      roles,
+      accessLevels,
+      scopeMode: row.scope_mode,
+      assignedSites: Number(row.assigned_sites ?? 0),
+      siteNames: row.site_names ?? [],
+      accessProfile,
+      createdAt: row.created_at
+    };
   });
 
   app.get("/customers/:id/site-groups", { preHandler: [requireAuth] }, async (request, reply) => {

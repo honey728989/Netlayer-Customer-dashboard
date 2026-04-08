@@ -415,6 +415,41 @@ export interface BillingLedgerSummary {
   pendingPaymentLinks: number
 }
 
+export interface BillingInvoice {
+  id: string
+  invoice_number?: string
+  invoiceNumber?: string
+  invoice_date?: string
+  date?: string
+  due_date?: string
+  dueDate?: string
+  total_amount?: number
+  amount?: number
+  balance?: number
+  status: string
+  payment_status?: string
+  pdf_url?: string
+  pdfUrl?: string
+  line_items?: Array<{
+    name?: string
+    description?: string
+    quantity?: number
+    rate?: number
+    item_total?: number
+  }>
+}
+
+export interface BillingInvoiceDetail {
+  invoice: BillingInvoice
+  payments: PaymentRecord[]
+  customer: {
+    id: string
+    name: string
+    code?: string
+    zohoCustomerId?: string | null
+  }
+}
+
 export interface SiteBillingSummary {
   siteId: string
   siteName: string
@@ -441,6 +476,17 @@ export interface CustomerPortalUser {
   siteNames: string[]
   accessProfile: string
   createdAt?: string
+}
+
+export interface CustomerPortalUserPayload {
+  email: string
+  fullName: string
+  password?: string
+  role: 'ENTERPRISE_ADMIN' | 'ENTERPRISE_USER'
+  scopeMode: 'ALL_SITES' | 'SELECTED_SITES'
+  accessLevels: string[]
+  siteIds?: string[]
+  isActive?: boolean
 }
 
 export interface CustomerSiteGroup {

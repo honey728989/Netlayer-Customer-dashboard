@@ -110,6 +110,75 @@ const routes: FastifyPluginAsync = async (app) => {
     }));
   });
 
+  app.get("/customers/:id/billing/:invoiceId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string; invoiceId: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const customer = await query<{ id: string; name: string; code: string; zoho_customer_id: string | null }>(
+      process.env.DATABASE_URL!,
+      `SELECT id, name, code, zoho_customer_id FROM customers WHERE id = $1`,
+      [params.id]
+    );
+
+    if (!customer.rows[0]) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const invoiceResult = await query<{
+      id: string;
+      zoho_invoice_id: string;
+      status: string;
+      payment_status: string | null;
+      payload: Record<string, unknown>;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT id, zoho_invoice_id, status, payment_status, payload
+        FROM billing_invoices
+        WHERE customer_id = $1
+          AND (id = $2 OR zoho_invoice_id = $2)
+        LIMIT 1
+      `,
+      [params.id, params.invoiceId]
+    );
+
+    const invoiceRow = invoiceResult.rows[0];
+    if (!invoiceRow) {
+      return reply.code(404).send({ message: "Invoice not found" });
+    }
+
+    const payments = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT *
+        FROM payments
+        WHERE customer_id = $1
+          AND (invoice_id = $2 OR invoice_id = $3)
+        ORDER BY created_at DESC
+      `,
+      [params.id, invoiceRow.id, invoiceRow.zoho_invoice_id]
+    );
+
+    return {
+      customer: {
+        id: customer.rows[0].id,
+        name: customer.rows[0].name,
+        code: customer.rows[0].code,
+        zohoCustomerId: customer.rows[0].zoho_customer_id
+      },
+      invoice: {
+        id: invoiceRow.id,
+        status: invoiceRow.status,
+        payment_status: invoiceRow.payment_status,
+        ...((invoiceRow.payload as Record<string, unknown>) ?? {})
+      },
+      payments: payments.rows
+    };
+  });
+
   app.get("/customers/:id/ledger", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@netlayer/auth'
 import { customersApi, type Service } from '@netlayer/api'
@@ -121,6 +122,7 @@ export function CustomerServicesPage() {
                   <th className="table-th">Bandwidth</th>
                   <th className="table-th">POP / Last Mile</th>
                   <th className="table-th">Status</th>
+                  <th className="table-th w-24 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,6 +144,11 @@ export function CustomerServicesPage() {
                     </td>
                     <td className="table-td">
                       <StatusPill status={service.status ?? 'unknown'} />
+                    </td>
+                    <td className="table-td text-right">
+                      <Link to={`/portal/services/${service.id}`} className="btn-ghost py-1 text-[11px]">
+                        Detail
+                      </Link>
                     </td>
                   </tr>
                 ))}

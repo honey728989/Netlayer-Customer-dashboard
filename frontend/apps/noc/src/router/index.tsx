@@ -20,12 +20,14 @@ const ReportsPage    = lazy(() => import('@/pages/noc/ReportsPage').then(m => ({
 const CustomerDashboardPage = lazy(() => import('../../../portal/src/pages/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })))
 const CustomerHeatMapPage = lazy(() => import('@/pages/portal/CustomerHeatMapPage').then(m => ({ default: m.CustomerHeatMapPage })))
 const CustomerServicesPage = lazy(() => import('@/pages/portal/CustomerServicesPage').then(m => ({ default: m.CustomerServicesPage })))
+const CustomerServiceDetailPage = lazy(() => import('@/pages/portal/CustomerServiceDetailPage').then(m => ({ default: m.CustomerServiceDetailPage })))
 const CustomerSitesPage = lazy(() => import('../../../portal/src/pages/CustomerSites').then(m => ({ default: m.CustomerSites })))
 const CustomerSiteDetailPage = lazy(() => import('@/pages/portal/CustomerSiteDetailPage').then(m => ({ default: m.CustomerSiteDetailPage })))
 const CustomerTicketsPage = lazy(() => import('../../../portal/src/pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
 const CustomerTicketDetailPage = lazy(() => import('@/pages/portal/CustomerTicketDetailPage').then(m => ({ default: m.CustomerTicketDetailPage })))
 const CustomerRaiseTicketPage = lazy(() => import('@/pages/portal/CustomerRaiseTicketPage').then(m => ({ default: m.CustomerRaiseTicketPage })))
 const CustomerBillingPage = lazy(() => import('../../../portal/src/pages/BillingPage').then(m => ({ default: m.BillingPage })))
+const CustomerInvoiceDetailPage = lazy(() => import('@/pages/portal/CustomerInvoiceDetailPage').then(m => ({ default: m.CustomerInvoiceDetailPage })))
 const CustomerReportsPage = lazy(() => import('../../../portal/src/pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
 const CustomerFeasibilityPage = lazy(() => import('@/pages/portal/CustomerFeasibilityPage').then(m => ({ default: m.CustomerFeasibilityPage })))
 const CustomerNotificationsPage = lazy(() => import('@/pages/portal/CustomerNotificationsPage').then(m => ({ default: m.CustomerNotificationsPage })))
@@ -94,12 +96,14 @@ const router = createBrowserRouter([
               { path: 'sites', element: <Lazy><CustomerSitesPage /></Lazy> },
               { path: 'sites/:siteId', element: <Lazy><CustomerSiteDetailPage /></Lazy> },
               { path: 'services', element: <Lazy><CustomerServicesPage /></Lazy> },
+              { path: 'services/:serviceId', element: <Lazy><CustomerServiceDetailPage /></Lazy> },
               { path: 'tickets', element: <Lazy><CustomerTicketsPage /></Lazy> },
               { path: 'tickets/:ticketId', element: <Lazy><CustomerTicketDetailPage /></Lazy> },
               { path: 'tickets/new', element: <Lazy><CustomerRaiseTicketPage /></Lazy> },
               { path: 'notifications', element: <Lazy><CustomerNotificationsPage /></Lazy> },
               { path: 'access', element: <Lazy><CustomerAccessPage /></Lazy> },
               { path: 'billing', element: <Lazy><CustomerBillingPage /></Lazy> },
+              { path: 'billing/:invoiceId', element: <Lazy><CustomerInvoiceDetailPage /></Lazy> },
               { path: 'feasibility', element: <Lazy><CustomerFeasibilityPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><CustomerReportsPage /></Lazy> },
             ],
