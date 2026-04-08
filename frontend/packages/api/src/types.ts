@@ -98,6 +98,12 @@ export interface SiteCreatePayload {
   contractEndDate?: string
 }
 
+export interface SiteGrafanaEmbed {
+  dashboardUid?: string | null
+  embedUrl?: string | null
+  available: boolean
+}
+
 export interface SiteTraffic {
   timestamp?: string
   metric_time?: string

@@ -49,6 +49,11 @@ export function AdminSiteDetailPage() {
     queryFn: () => sitesApi.getDevices(siteId),
     enabled: Boolean(siteId),
   })
+  const { data: grafana } = useQuery({
+    queryKey: ['admin', 'site', siteId, 'grafana'],
+    queryFn: () => sitesApi.getGrafanaEmbed(siteId),
+    enabled: Boolean(siteId),
+  })
   const { data: eventsRaw } = useQuery({
     queryKey: ['admin', 'site', siteId, 'events'],
     queryFn: () => sitesApi.getEvents(siteId, { pageSize: 20 }),
@@ -167,6 +172,17 @@ export function AdminSiteDetailPage() {
                 </div>
               ))}
               {services.length === 0 ? <p className="text-xs text-dim">No services mapped</p> : null}
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <h2 className="font-display text-sm font-semibold text-white">Grafana Mapping</h2>
+            <div className="mt-3 rounded-lg border border-border bg-surface-2 p-3 text-xs">
+              <p className="text-[10px] uppercase tracking-widest text-dim">Dashboard UID</p>
+              <p className="mt-1 font-mono text-white">{site?.dashboard_uid ?? 'Not mapped'}</p>
+              <p className="mt-2 text-dim">
+                {grafana?.available ? 'Signed customer/site embed ready for portal consumption.' : 'Grafana embed will become active once dashboard UID and env vars are configured.'}
+              </p>
             </div>
           </div>
         </div>

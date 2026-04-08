@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { FastifyPluginAsync } from "fastify";
 
 import { ServiceEnv, createServiceApp, query, requireAuth } from "@netlayer/platform";
-import { buildCustomerDashboardUrl } from "./grafana";
+import { buildCustomerDashboardUrl, buildSiteDashboardUrl } from "./grafana";
 
 const routes: FastifyPluginAsync = async (app) => {
   const canManagePlatformWorkspace = (user: any) =>
@@ -824,6 +824,47 @@ const routes: FastifyPluginAsync = async (app) => {
       latestLatencyMs: row.latest_latency_ms ? Number(row.latest_latency_ms) : null,
       latestPacketLossPct: row.latest_packet_loss_pct ? Number(row.latest_packet_loss_pct) : null
     }));
+  });
+
+  app.get("/sites/:id/grafana", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    const result = await query<{
+      id: string;
+      customer_id: string;
+      dashboard_uid: string | null;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT id, customer_id, dashboard_uid
+        FROM sites
+        WHERE id = $1
+      `,
+      [params.id]
+    );
+
+    const site = result.rows[0];
+    if (!site) {
+      return reply.code(404).send({ message: "Site not found" });
+    }
+
+    if (user.customerId && user.customerId !== site.customer_id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    if (!site.dashboard_uid || !process.env.GRAFANA_BASE_URL || !process.env.GRAFANA_EMBED_SIGNING_SECRET) {
+      return {
+        dashboardUid: site.dashboard_uid,
+        embedUrl: null,
+        available: false
+      };
+    }
+
+    return {
+      dashboardUid: site.dashboard_uid,
+      embedUrl: buildSiteDashboardUrl(site.customer_id, site.id, site.dashboard_uid),
+      available: true
+    };
   });
 
   app.get("/customers/:id/services", { preHandler: [requireAuth] }, async (request, reply) => {

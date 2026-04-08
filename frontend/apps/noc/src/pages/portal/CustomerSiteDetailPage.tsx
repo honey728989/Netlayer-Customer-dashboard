@@ -67,6 +67,12 @@ export function CustomerSiteDetailPage() {
     enabled: Boolean(siteId),
     staleTime: 30_000,
   })
+  const { data: grafanaEmbed } = useQuery({
+    queryKey: ['site', siteId, 'grafana'],
+    queryFn: () => sitesApi.getGrafanaEmbed(siteId),
+    enabled: Boolean(siteId),
+    staleTime: 30_000,
+  })
 
   const latestTraffic = useMemo(() => {
     if (!traffic.length) return null
@@ -145,6 +151,22 @@ export function CustomerSiteDetailPage() {
           </div>
         </Card>
       </div>
+
+      <Card title="Live Performance Graphs">
+        {grafanaEmbed?.available && grafanaEmbed.embedUrl ? (
+          <div className="h-[420px] overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+            <iframe
+              src={grafanaEmbed.embedUrl}
+              title="Site performance graphs"
+              className="h-full w-full border-0"
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl border px-4 py-5 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+            Grafana dashboard mapping abhi configured nahi hai. Admin panel me is site ke against dashboard UID map karo.
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card title="Service Inventory">
