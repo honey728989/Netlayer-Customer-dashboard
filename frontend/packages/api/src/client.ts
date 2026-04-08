@@ -4,6 +4,10 @@ declare global {
   interface ImportMetaEnv {
     readonly VITE_API_URL?: string
   }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv
+  }
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
@@ -77,3 +81,5 @@ class HttpClient {
 
 export const httpClient = new HttpClient()
 export const http = httpClient.http
+
+export {}
