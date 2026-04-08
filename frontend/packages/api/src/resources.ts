@@ -2,6 +2,9 @@ import { http } from './client'
 import type {
   Customer,
   CustomerContact,
+  CustomerContactPayload,
+  CustomerProfile,
+  CustomerProfilePayload,
   Partner,
   Lead,
   Service,
@@ -16,6 +19,8 @@ import type {
   CustomerPortalUserPayload,
   CustomerSiteGroup,
   CustomerSiteAccessRow,
+  CustomerServiceRequest,
+  CustomerServiceRequestPayload,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -132,6 +137,12 @@ export const customersApi = {
   getById: (id: string) =>
     http.get<Customer>(`/customers/${id}`).then((r) => r.data),
 
+  getProfile: (id: string) =>
+    http.get<CustomerProfile>(`/customers/${id}/profile`).then((r) => r.data),
+
+  updateProfile: (id: string, payload: CustomerProfilePayload) =>
+    http.patch<CustomerProfile>(`/customers/${id}/profile`, payload).then((r) => r.data),
+
   getOverview: (id: string) =>
     http.get(`/customers/${id}/overview`).then((r) => r.data),
 
@@ -149,6 +160,9 @@ export const customersApi = {
 
   getContacts: (id: string) =>
     http.get<CustomerContact[]>(`/customers/${id}/contacts`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  saveContacts: (id: string, contacts: CustomerContactPayload[]) =>
+    http.put<CustomerContact[]>(`/customers/${id}/contacts`, { contacts }).then((r) => Array.isArray(r.data) ? r.data : []),
 
   getLedger: (id: string) =>
     http.get<BillingLedgerSummary>(`/customers/${id}/ledger`).then((r) => r.data),
@@ -173,6 +187,12 @@ export const customersApi = {
 
   getSiteAccess: (id: string) =>
     http.get<CustomerSiteAccessRow[]>(`/customers/${id}/site-access`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  getRequests: (id: string) =>
+    http.get<CustomerServiceRequest[]>(`/customers/${id}/requests`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  createRequest: (id: string, payload: CustomerServiceRequestPayload) =>
+    http.post<CustomerServiceRequest>(`/customers/${id}/requests`, payload).then((r) => r.data),
 
   createPaymentLink: (id: string, payload: { amount: number; invoiceId?: string; description?: string }) =>
     http.post<PaymentRecord>(`/customers/${id}/payment-links`, payload).then((r) => r.data),

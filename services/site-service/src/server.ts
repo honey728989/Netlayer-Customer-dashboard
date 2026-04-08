@@ -326,6 +326,400 @@ const routes: FastifyPluginAsync = async (app) => {
     return result.rows;
   });
 
+  app.get("/customers/:id/profile", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const result = await query<{
+      id: string;
+      name: string;
+      code: string;
+      status: string;
+      tier: string;
+      sla_profile: string;
+      account_manager: string;
+      industry: string | null;
+      billing_email: string | null;
+      primary_contact_name: string | null;
+      primary_contact_phone: string | null;
+      contract_start_date: string | null;
+      contract_end_date: string | null;
+      monthly_recurring_revenue: string;
+      annual_contract_value: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          id,
+          name,
+          code,
+          status,
+          tier,
+          sla_profile,
+          account_manager,
+          industry,
+          billing_email,
+          primary_contact_name,
+          primary_contact_phone,
+          contract_start_date::text,
+          contract_end_date::text,
+          monthly_recurring_revenue::text,
+          annual_contract_value::text
+        FROM customers
+        WHERE id = $1
+      `,
+      [params.id]
+    );
+
+    if (!result.rows[0]) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      status: row.status,
+      tier: row.tier,
+      slaProfile: row.sla_profile,
+      accountManager: row.account_manager,
+      industry: row.industry,
+      billingEmail: row.billing_email,
+      primaryContactName: row.primary_contact_name,
+      primaryContactPhone: row.primary_contact_phone,
+      contractStartDate: row.contract_start_date,
+      contractEndDate: row.contract_end_date,
+      monthlyRecurringRevenue: Number(row.monthly_recurring_revenue ?? 0),
+      annualContractValue: Number(row.annual_contract_value ?? 0)
+    };
+  });
+
+  app.patch("/customers/:id/profile", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      name?: string;
+      industry?: string;
+      billingEmail?: string;
+      primaryContactName?: string;
+      primaryContactPhone?: string;
+    };
+
+    const updated = await query(
+      process.env.DATABASE_URL!,
+      `
+        UPDATE customers
+        SET
+          name = COALESCE($2, name),
+          industry = COALESCE($3, industry),
+          billing_email = COALESCE($4, billing_email),
+          primary_contact_name = COALESCE($5, primary_contact_name),
+          primary_contact_phone = COALESCE($6, primary_contact_phone),
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+          id,
+          name,
+          code,
+          status,
+          tier,
+          sla_profile,
+          account_manager,
+          industry,
+          billing_email,
+          primary_contact_name,
+          primary_contact_phone,
+          contract_start_date::text,
+          contract_end_date::text,
+          monthly_recurring_revenue::text,
+          annual_contract_value::text
+      `,
+      [
+        params.id,
+        body.name?.trim() || null,
+        body.industry?.trim() || null,
+        body.billingEmail?.trim() || null,
+        body.primaryContactName?.trim() || null,
+        body.primaryContactPhone?.trim() || null,
+      ]
+    );
+
+    if (!updated.rows[0]) {
+      return reply.code(404).send({ message: "Customer not found" });
+    }
+
+    const row = updated.rows[0] as any;
+    return {
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      status: row.status,
+      tier: row.tier,
+      slaProfile: row.sla_profile,
+      accountManager: row.account_manager,
+      industry: row.industry,
+      billingEmail: row.billing_email,
+      primaryContactName: row.primary_contact_name,
+      primaryContactPhone: row.primary_contact_phone,
+      contractStartDate: row.contract_start_date,
+      contractEndDate: row.contract_end_date,
+      monthlyRecurringRevenue: Number(row.monthly_recurring_revenue ?? 0),
+      annualContractValue: Number(row.annual_contract_value ?? 0)
+    };
+  });
+
+  app.put("/customers/:id/contacts", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      contacts?: Array<{
+        id?: string;
+        name?: string;
+        email?: string;
+        phone?: string;
+        role?: string;
+        designation?: string;
+        isPrimary?: boolean;
+        contactType?: string;
+      }>;
+    };
+
+    const contacts = (body.contacts ?? []).filter((item) => item.name?.trim());
+    await query(process.env.DATABASE_URL!, `DELETE FROM customer_contacts WHERE customer_id = $1`, [params.id]);
+
+    for (const contact of contacts) {
+      await query(
+        process.env.DATABASE_URL!,
+        `
+          INSERT INTO customer_contacts (
+            customer_id,
+            name,
+            email,
+            phone,
+            role,
+            designation,
+            is_primary,
+            contact_type
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `,
+        [
+          params.id,
+          contact.name?.trim(),
+          contact.email?.trim() || null,
+          contact.phone?.trim() || null,
+          contact.role?.trim() || null,
+          contact.designation?.trim() || null,
+          contact.isPrimary ?? false,
+          contact.contactType?.trim() || null,
+        ]
+      );
+    }
+
+    const refreshed = await query(
+      process.env.DATABASE_URL!,
+      `SELECT * FROM customer_contacts WHERE customer_id = $1 ORDER BY is_primary DESC, name`,
+      [params.id]
+    );
+
+    return refreshed.rows;
+  });
+
+  app.get("/customers/:id/requests", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const result = await query<{
+      id: string;
+      request_code: string;
+      request_type: string;
+      status: string;
+      priority: string;
+      title: string;
+      description: string;
+      service_id: string | null;
+      service_name: string | null;
+      site_id: string | null;
+      site_name: string | null;
+      requested_by_name: string | null;
+      created_at: string;
+      updated_at: string;
+      target_value: string | null;
+      metadata: Record<string, unknown> | null;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          csr.id,
+          csr.request_code,
+          csr.request_type,
+          csr.status,
+          csr.priority,
+          csr.title,
+          csr.description,
+          csr.service_id,
+          sv.service_id AS service_name,
+          csr.site_id,
+          s.name AS site_name,
+          u.full_name AS requested_by_name,
+          csr.created_at::text,
+          csr.updated_at::text,
+          csr.target_value,
+          csr.metadata
+        FROM customer_service_requests csr
+        LEFT JOIN services sv ON sv.id = csr.service_id
+        LEFT JOIN sites s ON s.id = csr.site_id
+        LEFT JOIN users u ON u.id = csr.requested_by_user_id
+        WHERE csr.customer_id = $1
+        ORDER BY csr.created_at DESC
+      `,
+      [params.id]
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      requestCode: row.request_code,
+      requestType: row.request_type,
+      status: row.status,
+      priority: row.priority,
+      title: row.title,
+      description: row.description,
+      serviceId: row.service_id,
+      serviceName: row.service_name,
+      siteId: row.site_id,
+      siteName: row.site_name,
+      requestedByName: row.requested_by_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      targetValue: row.target_value,
+      metadata: row.metadata ?? {},
+    }));
+  });
+
+  app.post("/customers/:id/requests", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      requestType?: string;
+      priority?: string;
+      title?: string;
+      description?: string;
+      serviceId?: string;
+      siteId?: string;
+      targetValue?: string;
+    };
+
+    if (!body.requestType || !body.title || !body.description) {
+      return reply.code(400).send({ message: "requestType, title, and description are required" });
+    }
+
+    const inserted = await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO customer_service_requests (
+          customer_id,
+          requested_by_user_id,
+          request_code,
+          request_type,
+          priority,
+          title,
+          description,
+          service_id,
+          site_id,
+          target_value,
+          status,
+          metadata
+        )
+        VALUES (
+          $1,
+          $2,
+          CONCAT('CSR-', TO_CHAR(NOW(), 'YYMMDD'), '-', LPAD((FLOOR(RANDOM() * 9000) + 1000)::text, 4, '0')),
+          $3,
+          COALESCE($4, 'MEDIUM'),
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          'REQUESTED',
+          '{}'::jsonb
+        )
+        RETURNING id
+      `,
+      [params.id, user.userId, body.requestType, body.priority ?? "MEDIUM", body.title.trim(), body.description.trim(), body.serviceId ?? null, body.siteId ?? null, body.targetValue ?? null]
+    );
+
+    reply.code(201);
+
+    const created = await query(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          csr.id,
+          csr.request_code,
+          csr.request_type,
+          csr.status,
+          csr.priority,
+          csr.title,
+          csr.description,
+          csr.service_id,
+          sv.service_id AS service_name,
+          csr.site_id,
+          s.name AS site_name,
+          u.full_name AS requested_by_name,
+          csr.created_at::text,
+          csr.updated_at::text,
+          csr.target_value,
+          csr.metadata
+        FROM customer_service_requests csr
+        LEFT JOIN services sv ON sv.id = csr.service_id
+        LEFT JOIN sites s ON s.id = csr.site_id
+        LEFT JOIN users u ON u.id = csr.requested_by_user_id
+        WHERE csr.id = $1
+      `,
+      [inserted.rows[0]?.id]
+    );
+
+    const row = created.rows[0] as any;
+    return {
+      id: row.id,
+      requestCode: row.request_code,
+      requestType: row.request_type,
+      status: row.status,
+      priority: row.priority,
+      title: row.title,
+      description: row.description,
+      serviceId: row.service_id,
+      serviceName: row.service_name,
+      siteId: row.site_id,
+      siteName: row.site_name,
+      requestedByName: row.requested_by_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      targetValue: row.target_value,
+      metadata: row.metadata ?? {},
+    };
+  });
+
   app.get("/customers/:id/portal-users", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const user = request.auth!;

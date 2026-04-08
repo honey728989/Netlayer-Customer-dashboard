@@ -14,6 +14,8 @@ const CustomerAccessPage = lazy(() => import('../../../noc/src/pages/portal/Cust
 const CustomerServicesPage = lazy(() => import('../../../noc/src/pages/portal/CustomerServicesPage').then(m => ({ default: m.CustomerServicesPage })))
 const CustomerServiceDetailPage = lazy(() => import('../../../noc/src/pages/portal/CustomerServiceDetailPage').then(m => ({ default: m.CustomerServiceDetailPage })))
 const CustomerInvoiceDetailPage = lazy(() => import('../../../noc/src/pages/portal/CustomerInvoiceDetailPage').then(m => ({ default: m.CustomerInvoiceDetailPage })))
+const CustomerSettingsPage = lazy(() => import('../../../noc/src/pages/portal/CustomerSettingsPage').then(m => ({ default: m.CustomerSettingsPage })))
+const CustomerRequestCenterPage = lazy(() => import('../../../noc/src/pages/portal/CustomerRequestCenterPage').then(m => ({ default: m.CustomerRequestCenterPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>
@@ -38,8 +40,10 @@ const router = createBrowserRouter([
               { path: 'services/:serviceId', element: <Lazy><CustomerServiceDetailPage /></Lazy> },
               { path: 'tickets',     element: <Lazy><CustomerTickets /></Lazy> },
               { path: 'access',      element: <Lazy><CustomerAccessPage /></Lazy> },
+              { path: 'settings',    element: <Lazy><CustomerSettingsPage /></Lazy> },
               { path: 'billing',     element: <Lazy><BillingPage /></Lazy> },
               { path: 'billing/:invoiceId', element: <Lazy><CustomerInvoiceDetailPage /></Lazy> },
+              { path: 'request-center', element: <Lazy><CustomerRequestCenterPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><SlaReportsPage /></Lazy> },
             ],
           },

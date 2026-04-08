@@ -244,6 +244,43 @@ export interface CustomerContact {
   contactType?: string
 }
 
+export interface CustomerProfile {
+  id: string
+  name: string
+  code?: string
+  status: string
+  tier?: string
+  slaProfile?: string
+  accountManager?: string
+  industry?: string
+  billingEmail?: string
+  primaryContactName?: string
+  primaryContactPhone?: string
+  contractStartDate?: string | null
+  contractEndDate?: string | null
+  monthlyRecurringRevenue?: number
+  annualContractValue?: number
+}
+
+export interface CustomerProfilePayload {
+  name: string
+  industry?: string
+  billingEmail?: string
+  primaryContactName?: string
+  primaryContactPhone?: string
+}
+
+export interface CustomerContactPayload {
+  id?: string
+  name: string
+  email?: string
+  phone?: string
+  role?: string
+  designation?: string
+  isPrimary?: boolean
+  contactType?: string
+}
+
 // ─── Partners ─────────────────────────────────────────────────────────────────
 
 export interface Partner {
@@ -509,6 +546,35 @@ export interface CustomerSiteAccessRow {
     email: string
     accessLevel: string
   }>
+}
+
+export interface CustomerServiceRequest {
+  id: string
+  requestCode: string
+  requestType: 'BANDWIDTH_UPGRADE' | 'RELOCATION' | 'STATIC_IP' | 'SERVICE_SHIFT' | 'CONTRACT_RENEWAL' | 'GENERAL'
+  status: string
+  priority: string
+  title: string
+  description: string
+  serviceId?: string | null
+  serviceName?: string | null
+  siteId?: string | null
+  siteName?: string | null
+  requestedByName?: string | null
+  createdAt?: string
+  updatedAt?: string
+  targetValue?: string | null
+  metadata?: Record<string, unknown>
+}
+
+export interface CustomerServiceRequestPayload {
+  requestType: CustomerServiceRequest['requestType']
+  priority?: string
+  title: string
+  description: string
+  serviceId?: string
+  siteId?: string
+  targetValue?: string
 }
 
 export interface PaymentRecord {

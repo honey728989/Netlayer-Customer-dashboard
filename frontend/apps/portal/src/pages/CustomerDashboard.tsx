@@ -238,6 +238,8 @@ export function CustomerDashboard() {
             <a href="/portal/notifications" className="btn-ghost text-[11px] justify-center">Notifications</a>
             <a href="/portal/tickets/new" className="btn-ghost text-[11px] justify-center">Raise Ticket</a>
             <a href="/portal/access" className="btn-ghost text-[11px] justify-center">User Access</a>
+            <a href="/portal/request-center" className="btn-ghost text-[11px] justify-center">Request Center</a>
+            <a href="/portal/settings" className="btn-ghost text-[11px] justify-center">Settings</a>
           </div>
         </div>
       </div>

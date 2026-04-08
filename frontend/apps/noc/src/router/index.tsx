@@ -32,6 +32,8 @@ const CustomerReportsPage = lazy(() => import('../../../portal/src/pages/SlaRepo
 const CustomerFeasibilityPage = lazy(() => import('@/pages/portal/CustomerFeasibilityPage').then(m => ({ default: m.CustomerFeasibilityPage })))
 const CustomerNotificationsPage = lazy(() => import('@/pages/portal/CustomerNotificationsPage').then(m => ({ default: m.CustomerNotificationsPage })))
 const CustomerAccessPage = lazy(() => import('@/pages/portal/CustomerAccessPage').then(m => ({ default: m.CustomerAccessPage })))
+const CustomerSettingsPage = lazy(() => import('@/pages/portal/CustomerSettingsPage').then(m => ({ default: m.CustomerSettingsPage })))
+const CustomerRequestCenterPage = lazy(() => import('@/pages/portal/CustomerRequestCenterPage').then(m => ({ default: m.CustomerRequestCenterPage })))
 const PartnerDashboardPage = lazy(() => import('../../../partner/src/pages/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })))
 const PartnerPipelinePage = lazy(() => import('../../../partner/src/pages/PipelinePage').then(m => ({ default: m.PipelinePage })))
 const PartnerClientsPage = lazy(() => import('../../../partner/src/pages/ClientsPage').then(m => ({ default: m.ClientsPage })))
@@ -102,9 +104,11 @@ const router = createBrowserRouter([
               { path: 'tickets/new', element: <Lazy><CustomerRaiseTicketPage /></Lazy> },
               { path: 'notifications', element: <Lazy><CustomerNotificationsPage /></Lazy> },
               { path: 'access', element: <Lazy><CustomerAccessPage /></Lazy> },
+              { path: 'settings', element: <Lazy><CustomerSettingsPage /></Lazy> },
               { path: 'billing', element: <Lazy><CustomerBillingPage /></Lazy> },
               { path: 'billing/:invoiceId', element: <Lazy><CustomerInvoiceDetailPage /></Lazy> },
               { path: 'feasibility', element: <Lazy><CustomerFeasibilityPage /></Lazy> },
+              { path: 'request-center', element: <Lazy><CustomerRequestCenterPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><CustomerReportsPage /></Lazy> },
             ],
           },

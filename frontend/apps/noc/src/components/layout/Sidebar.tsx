@@ -92,6 +92,13 @@ const NAV_BY_ROLE: Record<UserRole, { title: string; sections: NavSection[] }> =
         heading: 'Requests',
         items: [
           { to: '/portal/feasibility', label: 'Feasibility', icon: Radar },
+          { to: '/portal/request-center', label: 'Request Center', icon: Inbox },
+        ],
+      },
+      {
+        heading: 'Administration',
+        items: [
+          { to: '/portal/settings', label: 'Settings', icon: Settings },
         ],
       },
     ],
