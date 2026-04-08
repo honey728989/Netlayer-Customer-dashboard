@@ -13,6 +13,7 @@ import type {
   CustomerHeatmapPoint,
   BillingLedgerSummary,
   BillingInvoiceDetail,
+  FinanceSummary,
   PaymentRecord,
   SiteBillingSummary,
   CustomerPortalUser,
@@ -291,4 +292,9 @@ export const authApi = {
 
   me: () =>
     http.get('/auth/me').then((r) => normalizeAuthUser(r.data)),
+}
+
+export const financeApi = {
+  getSummary: () =>
+    http.get<FinanceSummary>('/finance/summary').then((r) => r.data),
 }

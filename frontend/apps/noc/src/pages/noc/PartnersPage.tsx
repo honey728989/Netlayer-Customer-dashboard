@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { partnersApi } from '@netlayer/api'
@@ -96,7 +97,7 @@ export function PartnersPage() {
                   return (
                     <tr key={p.id} className="table-row">
                       <td className="table-td">
-                        <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                        <Link to={`/noc/partners/${p.id}`} className="font-medium text-xs hover:text-white" style={{ color: 'var(--text-primary)' }}>{p.name}</Link>
                         <p className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
                           {[p.email, p.city].filter(Boolean).join(' · ')}
                         </p>

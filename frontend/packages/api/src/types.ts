@@ -452,6 +452,18 @@ export interface BillingLedgerSummary {
   pendingPaymentLinks: number
 }
 
+export interface FinanceSummary {
+  invoices: {
+    totalOutstanding: number
+    paidInvoices: number
+    overdueInvoices: number
+  }
+  payments: {
+    pending: number
+    collectedAmount: number
+  }
+}
+
 export interface BillingInvoice {
   id: string
   invoice_number?: string

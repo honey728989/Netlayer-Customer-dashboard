@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, Users, TrendingUp, Building2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { customersApi } from '@netlayer/api'
@@ -136,7 +137,7 @@ export function CustomersPage() {
                 filtered.map((c: Customer) => (
                   <tr key={c.id} className="table-row">
                     <td className="table-td">
-                      <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
+                      <Link to={`/noc/customers/${c.id}`} className="font-medium text-xs hover:text-white" style={{ color: 'var(--text-primary)' }}>{c.name}</Link>
                       <p className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>{c.code ?? ''}</p>
                     </td>
                     <td className="table-td"><TierBadge tier={c.tier} /></td>

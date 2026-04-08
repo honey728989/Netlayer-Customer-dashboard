@@ -3,7 +3,6 @@ import { lazy, Suspense } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { RequireAuth, RequireRole, RoleRedirect } from '@/components/auth/RouteGuards'
 import { LoginPage } from '@/pages/LoginPage'
-import { SharedPlaceholderPage } from '@/pages/SharedPlaceholderPage'
 import { PageLoader } from '@netlayer/ui'
 
 // ─── Lazy-loaded NOC pages ────────────────────────────────────────────────────
@@ -13,7 +12,13 @@ const SitesPage      = lazy(() => import('@/pages/noc/SitesPage').then(m => ({ d
 const TicketsPage    = lazy(() => import('@/pages/noc/TicketsPage').then(m => ({ default: m.TicketsPage })))
 const AlertsPage     = lazy(() => import('@/pages/noc/AlertsPage').then(m => ({ default: m.AlertsPage })))
 const CustomersPage  = lazy(() => import('@/pages/noc/CustomersPage').then(m => ({ default: m.CustomersPage })))
+const AdminCustomerDetailPage = lazy(() => import('@/pages/noc/AdminCustomerDetailPage').then(m => ({ default: m.AdminCustomerDetailPage })))
 const PartnersPage   = lazy(() => import('@/pages/noc/PartnersPage').then(m => ({ default: m.PartnersPage })))
+const AdminPartnerDetailPage = lazy(() => import('@/pages/noc/AdminPartnerDetailPage').then(m => ({ default: m.AdminPartnerDetailPage })))
+const AdminLeadsPage = lazy(() => import('@/pages/noc/AdminLeadsPage').then(m => ({ default: m.AdminLeadsPage })))
+const AdminFeasibilityPage = lazy(() => import('@/pages/noc/AdminFeasibilityPage').then(m => ({ default: m.AdminFeasibilityPage })))
+const AdminFinancePage = lazy(() => import('@/pages/noc/AdminFinancePage').then(m => ({ default: m.AdminFinancePage })))
+const AdminSettingsPage = lazy(() => import('@/pages/noc/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })))
 const BandwidthPage  = lazy(() => import('@/pages/noc/BandwidthPage').then(m => ({ default: m.BandwidthPage })))
 const MonitoringPage = lazy(() => import('@/pages/noc/MonitoringPage').then(m => ({ default: m.MonitoringPage })))
 const ReportsPage    = lazy(() => import('@/pages/noc/ReportsPage').then(m => ({ default: m.ReportsPage })))
@@ -71,18 +76,13 @@ const router = createBrowserRouter([
               { path: 'bandwidth',  element: <Lazy><BandwidthPage /></Lazy> },
               { path: 'reports',    element: <Lazy><ReportsPage /></Lazy> },
               { path: 'customers',  element: <Lazy><CustomersPage /></Lazy> },
+              { path: 'customers/:customerId', element: <Lazy><AdminCustomerDetailPage /></Lazy> },
               { path: 'partners',   element: <Lazy><PartnersPage /></Lazy> },
-              {
-                path: 'settings',
-                element: (
-                  <SharedPlaceholderPage
-                    title="Settings Workspace"
-                    description="User, integration, and policy settings are being finalized for the telecom admin experience."
-                    primaryHref="/noc"
-                    primaryLabel="Back to Dashboard"
-                  />
-                ),
-              },
+              { path: 'partners/:partnerId', element: <Lazy><AdminPartnerDetailPage /></Lazy> },
+              { path: 'leads', element: <Lazy><AdminLeadsPage /></Lazy> },
+              { path: 'feasibility', element: <Lazy><AdminFeasibilityPage /></Lazy> },
+              { path: 'finance', element: <Lazy><AdminFinancePage /></Lazy> },
+              { path: 'settings', element: <Lazy><AdminSettingsPage /></Lazy> },
             ],
           },
         ],

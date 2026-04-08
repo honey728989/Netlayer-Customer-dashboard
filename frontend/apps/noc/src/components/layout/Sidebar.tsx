@@ -22,6 +22,8 @@ import {
   Inbox,
   ShieldCheck,
   FileText,
+  Landmark,
+  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { useUIStore, useAlertStore } from '@/store'
@@ -67,6 +69,9 @@ const NAV_BY_ROLE: Record<UserRole, { title: string; sections: NavSection[] }> =
         items: [
           { to: '/noc/customers', label: 'Customers', icon: Users },
           { to: '/noc/partners', label: 'Partners', icon: Handshake },
+          { to: '/noc/leads', label: 'Sales', icon: BriefcaseBusiness },
+          { to: '/noc/feasibility', label: 'Feasibility', icon: ClipboardCheck },
+          { to: '/noc/finance', label: 'Finance', icon: Landmark },
           { to: '/noc/settings', label: 'Settings', icon: Settings },
         ],
       },
