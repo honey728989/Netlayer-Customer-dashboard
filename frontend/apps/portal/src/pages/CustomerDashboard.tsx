@@ -168,6 +168,10 @@ export function CustomerDashboard() {
             <a href="/portal/sites" className="btn-ghost text-[11px] flex-1 justify-center">My Sites</a>
             <a href="/portal/billing" className="btn-ghost text-[11px] flex-1 justify-center">Billing</a>
           </div>
+          <div className="flex gap-2">
+            <a href="/portal/heatmap" className="btn-ghost text-[11px] flex-1 justify-center">Heat Map</a>
+            <a href="/portal/feasibility" className="btn-ghost text-[11px] flex-1 justify-center">Feasibility</a>
+          </div>
         </div>
       </div>
 

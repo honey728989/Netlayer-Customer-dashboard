@@ -3,6 +3,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard,
   Globe,
+  Map,
   MonitorDot,
   Bell,
   Ticket,
@@ -13,6 +14,7 @@ import {
   ChevronLeft,
   Wifi,
   CreditCard,
+  Radar,
   BriefcaseBusiness,
   KanbanSquare,
   Wallet,
@@ -73,10 +75,17 @@ const NAV_BY_ROLE: Record<UserRole, { title: string; sections: NavSection[] }> =
         heading: 'Overview',
         items: [
           { to: '/portal', label: 'Dashboard', icon: LayoutDashboard, end: true },
+          { to: '/portal/heatmap', label: 'Heat Map', icon: Map },
           { to: '/portal/sites', label: 'Sites', icon: Globe },
           { to: '/portal/tickets', label: 'Tickets', icon: Ticket },
           { to: '/portal/billing', label: 'Billing', icon: CreditCard },
           { to: '/portal/reports/sla', label: 'Reports', icon: BarChart3 },
+        ],
+      },
+      {
+        heading: 'Requests',
+        items: [
+          { to: '/portal/feasibility', label: 'Feasibility', icon: Radar },
         ],
       },
     ],

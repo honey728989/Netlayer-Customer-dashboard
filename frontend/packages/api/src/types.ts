@@ -333,6 +333,8 @@ export interface Service {
 export interface FeasibilityRequest {
   id: string
   request_code?: string
+  site_name?: string
+  siteName?: string
   customer_id?: string
   customer_name?: string
   source?: string
@@ -352,6 +354,21 @@ export interface FeasibilityRequest {
   notes?: string
   created_at?: string
   comments?: Array<{ id: string; body: string; author_name?: string; is_internal?: boolean; created_at?: string }>
+}
+
+export interface CustomerHeatmapPoint {
+  siteId: string
+  siteName: string
+  city?: string | null
+  state?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  status: string
+  serviceCount: number
+  totalBandwidthMbps: number
+  activeAlertCount: number
+  latestLatencyMs?: number | null
+  latestPacketLossPct?: number | null
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────

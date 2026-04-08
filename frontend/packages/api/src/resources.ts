@@ -5,6 +5,7 @@ import type {
   Lead,
   Service,
   FeasibilityRequest,
+  CustomerHeatmapPoint,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -137,7 +138,7 @@ export const customersApi = {
     http.get(`/customers/${id}/ledger`).then((r) => r.data),
 
   getHeatmap: (id: string) =>
-    http.get(`/customers/${id}/heatmap`).then((r) => r.data),
+    http.get<CustomerHeatmapPoint[]>(`/customers/${id}/heatmap`).then((r) => r.data),
 }
 
 export const feasibilityApi = {

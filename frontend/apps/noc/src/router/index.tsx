@@ -18,10 +18,12 @@ const BandwidthPage  = lazy(() => import('@/pages/noc/BandwidthPage').then(m => 
 const MonitoringPage = lazy(() => import('@/pages/noc/MonitoringPage').then(m => ({ default: m.MonitoringPage })))
 const ReportsPage    = lazy(() => import('@/pages/noc/ReportsPage').then(m => ({ default: m.ReportsPage })))
 const CustomerDashboardPage = lazy(() => import('../../../portal/src/pages/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })))
+const CustomerHeatMapPage = lazy(() => import('@/pages/portal/CustomerHeatMapPage').then(m => ({ default: m.CustomerHeatMapPage })))
 const CustomerSitesPage = lazy(() => import('../../../portal/src/pages/CustomerSites').then(m => ({ default: m.CustomerSites })))
 const CustomerTicketsPage = lazy(() => import('../../../portal/src/pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
 const CustomerBillingPage = lazy(() => import('../../../portal/src/pages/BillingPage').then(m => ({ default: m.BillingPage })))
 const CustomerReportsPage = lazy(() => import('../../../portal/src/pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
+const CustomerFeasibilityPage = lazy(() => import('@/pages/portal/CustomerFeasibilityPage').then(m => ({ default: m.CustomerFeasibilityPage })))
 const PartnerDashboardPage = lazy(() => import('../../../partner/src/pages/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })))
 const PartnerPipelinePage = lazy(() => import('../../../partner/src/pages/PipelinePage').then(m => ({ default: m.PipelinePage })))
 const PartnerClientsPage = lazy(() => import('../../../partner/src/pages/ClientsPage').then(m => ({ default: m.ClientsPage })))
@@ -82,6 +84,7 @@ const router = createBrowserRouter([
             element: <AppShell />,
             children: [
               { index: true, element: <Lazy><CustomerDashboardPage /></Lazy> },
+              { path: 'heatmap', element: <Lazy><CustomerHeatMapPage /></Lazy> },
               { path: 'sites', element: <Lazy><CustomerSitesPage /></Lazy> },
               { path: 'tickets', element: <Lazy><CustomerTicketsPage /></Lazy> },
               {
@@ -96,6 +99,7 @@ const router = createBrowserRouter([
                 ),
               },
               { path: 'billing', element: <Lazy><CustomerBillingPage /></Lazy> },
+              { path: 'feasibility', element: <Lazy><CustomerFeasibilityPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><CustomerReportsPage /></Lazy> },
             ],
           },
