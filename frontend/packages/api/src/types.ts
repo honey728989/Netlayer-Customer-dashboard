@@ -577,6 +577,17 @@ export interface CustomerServiceRequestPayload {
   targetValue?: string
 }
 
+export interface CustomerAuditLog {
+  id: number
+  action: string
+  entityType: string
+  entityId: string
+  createdAt?: string
+  actorName?: string | null
+  actorEmail?: string | null
+  details?: Record<string, unknown>
+}
+
 export interface PaymentRecord {
   id: string
   customer_id?: string

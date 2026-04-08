@@ -35,6 +35,22 @@ const routes: FastifyPluginAsync = async (app) => {
 
     return scoped.rows.length > 0 ? scoped.rows.map((row) => row.site_id) : null;
   };
+  const writeAuditLog = async (
+    actorUserId: string | undefined,
+    entityType: string,
+    entityId: string,
+    action: string,
+    details: Record<string, unknown> = {}
+  ) => {
+    await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO audit_logs (actor_user_id, entity_type, entity_id, action, details)
+        VALUES ($1, $2, $3, $4, $5::jsonb)
+      `,
+      [actorUserId ?? null, entityType, entityId, action, JSON.stringify(details)]
+    );
+  };
   // ─── Dashboard / Stats ──────────────────────────────────────────────────────
 
   app.get("/sites/stats", { preHandler: [requireAuth] }, async (request) => {
@@ -489,6 +505,10 @@ const routes: FastifyPluginAsync = async (app) => {
     }
 
     const row = updated.rows[0] as any;
+    await writeAuditLog(user.userId, "customer", params.id, "profile.updated", {
+      name: row.name,
+      billingEmail: row.billing_email
+    });
     return {
       id: row.id,
       name: row.name,
@@ -566,7 +586,61 @@ const routes: FastifyPluginAsync = async (app) => {
       [params.id]
     );
 
+    await writeAuditLog(user.userId, "customer", params.id, "contacts.updated", {
+      contactCount: contacts.length
+    });
+
     return refreshed.rows;
+  });
+
+  app.get("/customers/:id/audit-logs", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const result = await query<{
+      id: string;
+      action: string;
+      entity_type: string;
+      entity_id: string;
+      created_at: string;
+      actor_name: string | null;
+      actor_email: string | null;
+      details: Record<string, unknown> | null;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          al.id::text AS id,
+          al.action,
+          al.entity_type,
+          al.entity_id,
+          al.created_at::text,
+          u.full_name AS actor_name,
+          u.email AS actor_email,
+          al.details
+        FROM audit_logs al
+        LEFT JOIN users u ON u.id = al.actor_user_id
+        WHERE (al.entity_type = 'customer' AND al.entity_id = $1)
+           OR (al.entity_type = 'customer_user' AND al.details ->> 'customerId' = $1)
+        ORDER BY al.created_at DESC
+        LIMIT 30
+      `,
+      [params.id]
+    );
+
+    return result.rows.map((row) => ({
+      id: Number(row.id),
+      action: row.action,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      createdAt: row.created_at,
+      actorName: row.actor_name,
+      actorEmail: row.actor_email,
+      details: row.details ?? {},
+    }));
   });
 
   app.get("/customers/:id/requests", { preHandler: [requireAuth] }, async (request, reply) => {
@@ -699,6 +773,13 @@ const routes: FastifyPluginAsync = async (app) => {
       `,
       [params.id, user.userId, body.requestType, body.priority ?? "MEDIUM", body.title.trim(), body.description.trim(), body.serviceId ?? null, body.siteId ?? null, body.targetValue ?? null]
     );
+
+    await writeAuditLog(user.userId, "customer", params.id, "request.created", {
+      requestType: body.requestType,
+      title: body.title.trim(),
+      siteId: body.siteId ?? null,
+      serviceId: body.serviceId ?? null
+    });
 
     reply.code(201);
 
@@ -915,6 +996,13 @@ const routes: FastifyPluginAsync = async (app) => {
       );
     }
 
+    await writeAuditLog(user.userId, "customer_user", createdUserId, "portal-user.created", {
+      customerId: params.id,
+      role: body.role,
+      scopeMode,
+      accessLevels
+    });
+
     reply.code(201);
     const createdUser = await query(
       process.env.DATABASE_URL!,
@@ -1051,6 +1139,14 @@ const routes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    await writeAuditLog(user.userId, "customer_user", params.userId, "portal-user.updated", {
+      customerId: params.id,
+      role: body.role,
+      scopeMode: body.scopeMode,
+      accessLevels: body.accessLevels ?? [],
+      isActive: body.isActive
+    });
+
     const updatedUser = await query(
       process.env.DATABASE_URL!,
       `
@@ -1098,6 +1194,42 @@ const routes: FastifyPluginAsync = async (app) => {
       accessProfile,
       createdAt: row.created_at
     };
+  });
+
+  app.post("/customers/:id/portal-users/:userId/reset-password", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string; userId: string };
+    const user = request.auth!;
+    if (!canManageCustomerWorkspace(user, params.id)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as { password?: string };
+    if (!body.password || body.password.trim().length < 8) {
+      return reply.code(400).send({ message: "A password of at least 8 characters is required" });
+    }
+
+    const updated = await query(
+      process.env.DATABASE_URL!,
+      `
+        UPDATE users
+        SET password_hash = crypt($2, gen_salt('bf')), updated_at = NOW()
+        WHERE id = $1
+          AND customer_id = $3
+        RETURNING id, email
+      `,
+      [params.userId, body.password.trim(), params.id]
+    );
+
+    if (!updated.rows[0]) {
+      return reply.code(404).send({ message: "Portal user not found" });
+    }
+
+    await writeAuditLog(user.userId, "customer_user", params.userId, "portal-user.password-reset", {
+      customerId: params.id,
+      email: updated.rows[0].email
+    });
+
+    return { success: true, userId: params.userId };
   });
 
   app.get("/customers/:id/site-groups", { preHandler: [requireAuth] }, async (request, reply) => {

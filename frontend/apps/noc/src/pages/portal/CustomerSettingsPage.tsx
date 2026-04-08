@@ -24,6 +24,13 @@ export function CustomerSettingsPage() {
     staleTime: 30_000,
   })
 
+  const { data: auditLogs = [] } = useQuery({
+    queryKey: ['customers', customerId, 'audit-logs'],
+    queryFn: () => customersApi.getAuditLogs(customerId),
+    enabled: Boolean(customerId),
+    staleTime: 30_000,
+  })
+
   const [profileForm, setProfileForm] = useState({
     name: '',
     industry: '',
@@ -247,6 +254,28 @@ export function CustomerSettingsPage() {
             </button>
           </div>
         </div>
+      </Card>
+
+      <Card title="Recent Activity">
+        {auditLogs.length === 0 ? (
+          <EmptyState title="No audit activity yet" description="Profile, access, and request changes will start appearing here." />
+        ) : (
+          <div className="space-y-3">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="rounded-lg border border-border bg-surface-2 p-3 text-[12px]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-white">{log.action}</p>
+                  <p className="text-dim">
+                    {log.createdAt ? new Date(log.createdAt).toLocaleString('en-IN') : '--'}
+                  </p>
+                </div>
+                <p className="mt-1 text-muted">
+                  {log.actorName ?? 'System'}{log.actorEmail ? ` (${log.actorEmail})` : ''} updated {log.entityType}.
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   )

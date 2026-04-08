@@ -21,6 +21,7 @@ import type {
   CustomerSiteAccessRow,
   CustomerServiceRequest,
   CustomerServiceRequestPayload,
+  CustomerAuditLog,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -182,6 +183,9 @@ export const customersApi = {
   updatePortalUser: (id: string, userId: string, payload: Partial<CustomerPortalUserPayload>) =>
     http.patch<CustomerPortalUser>(`/customers/${id}/portal-users/${userId}`, payload).then((r) => r.data),
 
+  resetPortalUserPassword: (id: string, userId: string, password: string) =>
+    http.post(`/customers/${id}/portal-users/${userId}/reset-password`, { password }).then((r) => r.data),
+
   getSiteGroups: (id: string) =>
     http.get<CustomerSiteGroup[]>(`/customers/${id}/site-groups`).then((r) => Array.isArray(r.data) ? r.data : []),
 
@@ -193,6 +197,9 @@ export const customersApi = {
 
   createRequest: (id: string, payload: CustomerServiceRequestPayload) =>
     http.post<CustomerServiceRequest>(`/customers/${id}/requests`, payload).then((r) => r.data),
+
+  getAuditLogs: (id: string) =>
+    http.get<CustomerAuditLog[]>(`/customers/${id}/audit-logs`).then((r) => Array.isArray(r.data) ? r.data : []),
 
   createPaymentLink: (id: string, payload: { amount: number; invoiceId?: string; description?: string }) =>
     http.post<PaymentRecord>(`/customers/${id}/payment-links`, payload).then((r) => r.data),

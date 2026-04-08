@@ -54,6 +54,8 @@ export function CustomerAccessPage() {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<FormState>(defaultFormState)
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [passwordResetUserId, setPasswordResetUserId] = useState<string | null>(null)
+  const [temporaryPassword, setTemporaryPassword] = useState('Customer@123')
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const { data: portalUsers = [], isLoading: usersLoading, isError: usersError, refetch: refetchUsers } = useQuery({
@@ -171,6 +173,20 @@ export function CustomerAccessPage() {
     },
     onError: (error: any) => {
       setFeedback({ type: 'error', message: error?.response?.data?.message ?? 'Failed to update portal user.' })
+    },
+  })
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ userId, password }: { userId: string; password: string }) =>
+      customersApi.resetPortalUserPassword(customerId, userId, password),
+    onSuccess: async () => {
+      await refreshAccessWorkspace()
+      setFeedback({ type: 'success', message: 'Portal user password reset successfully.' })
+      setPasswordResetUserId(null)
+      setTemporaryPassword('Customer@123')
+    },
+    onError: (error: any) => {
+      setFeedback({ type: 'error', message: error?.response?.data?.message ?? 'Failed to reset password.' })
     },
   })
 
@@ -338,6 +354,27 @@ export function CustomerAccessPage() {
                 Cancel Edit
               </button>
             ) : null}
+            {passwordResetUserId ? (
+              <>
+                <input
+                  className="input-field max-w-56"
+                  value={temporaryPassword}
+                  onChange={(event) => setTemporaryPassword(event.target.value)}
+                  placeholder="Temporary password"
+                />
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={resetPasswordMutation.isPending || temporaryPassword.trim().length < 8}
+                  onClick={() => resetPasswordMutation.mutate({ userId: passwordResetUserId, password: temporaryPassword })}
+                >
+                  {resetPasswordMutation.isPending ? 'Resetting...' : 'Confirm Reset'}
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => setPasswordResetUserId(null)}>
+                  Cancel Reset
+                </button>
+              </>
+            ) : null}
           </div>
         </Card>
 
@@ -417,6 +454,9 @@ export function CustomerAccessPage() {
                     <StatusPill status={portalUser.isActive ? 'ACTIVE' : 'INACTIVE'} />
                     <button type="button" className="btn-ghost py-1 text-[11px]" onClick={() => setEditingUserId(portalUser.id)}>
                       Edit
+                    </button>
+                    <button type="button" className="btn-ghost py-1 text-[11px]" onClick={() => setPasswordResetUserId(portalUser.id)}>
+                      Reset Password
                     </button>
                     <button type="button" className="btn-ghost py-1 text-[11px]" onClick={() => handleQuickToggle(portalUser)}>
                       {portalUser.isActive ? 'Disable' : 'Enable'}
