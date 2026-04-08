@@ -2,6 +2,12 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@netlayer/auth'
 import type { UserRole } from '@netlayer/api'
 
+const HOME_BY_ROLE: Record<UserRole, string> = {
+  admin: '/noc',
+  customer: '/portal',
+  partner: '/partner',
+}
+
 // ─── Require Auth ─────────────────────────────────────────────────────────────
 
 export function RequireAuth() {
@@ -30,7 +36,7 @@ export function RequireRole({ roles, redirectTo = '/login' }: RequireRoleProps) 
   }
 
   if (!user || !roles.includes(user.role)) {
-    return <Navigate to={redirectTo} replace />
+    return <Navigate to={user ? HOME_BY_ROLE[user.role] : redirectTo} replace />
   }
 
   return <Outlet />
@@ -45,11 +51,5 @@ export function RoleRedirect() {
     return <Navigate to="/login" replace />
   }
 
-  const roleMap: Record<UserRole, string> = {
-    admin: '/noc',
-    customer: '/portal',
-    partner: '/partner',
-  }
-
-  return <Navigate to={roleMap[user.role] ?? '/login'} replace />
+  return <Navigate to={HOME_BY_ROLE[user.role] ?? '/login'} replace />
 }

@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { RequireAuth, RequireRole, RoleRedirect } from '@/components/auth/RouteGuards'
 import { LoginPage } from '@/pages/LoginPage'
+import { SharedPlaceholderPage } from '@/pages/SharedPlaceholderPage'
 import { PageLoader } from '@netlayer/ui'
 
 // ─── Lazy-loaded NOC pages ────────────────────────────────────────────────────
@@ -16,6 +17,16 @@ const PartnersPage   = lazy(() => import('@/pages/noc/PartnersPage').then(m => (
 const BandwidthPage  = lazy(() => import('@/pages/noc/BandwidthPage').then(m => ({ default: m.BandwidthPage })))
 const MonitoringPage = lazy(() => import('@/pages/noc/MonitoringPage').then(m => ({ default: m.MonitoringPage })))
 const ReportsPage    = lazy(() => import('@/pages/noc/ReportsPage').then(m => ({ default: m.ReportsPage })))
+const CustomerDashboardPage = lazy(() => import('../../../portal/src/pages/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })))
+const CustomerSitesPage = lazy(() => import('../../../portal/src/pages/CustomerSites').then(m => ({ default: m.CustomerSites })))
+const CustomerTicketsPage = lazy(() => import('../../../portal/src/pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
+const CustomerBillingPage = lazy(() => import('../../../portal/src/pages/BillingPage').then(m => ({ default: m.BillingPage })))
+const CustomerReportsPage = lazy(() => import('../../../portal/src/pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
+const PartnerDashboardPage = lazy(() => import('../../../partner/src/pages/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })))
+const PartnerPipelinePage = lazy(() => import('../../../partner/src/pages/PipelinePage').then(m => ({ default: m.PipelinePage })))
+const PartnerClientsPage = lazy(() => import('../../../partner/src/pages/ClientsPage').then(m => ({ default: m.ClientsPage })))
+const PartnerCommissionsPage = lazy(() => import('../../../partner/src/pages/CommissionsPage').then(m => ({ default: m.CommissionsPage })))
+const PartnerOnboardingPage = lazy(() => import('../../../partner/src/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>
@@ -48,6 +59,60 @@ const router = createBrowserRouter([
               { path: 'reports',    element: <Lazy><ReportsPage /></Lazy> },
               { path: 'customers',  element: <Lazy><CustomersPage /></Lazy> },
               { path: 'partners',   element: <Lazy><PartnersPage /></Lazy> },
+              {
+                path: 'settings',
+                element: (
+                  <SharedPlaceholderPage
+                    title="Settings Workspace"
+                    description="User, integration, and policy settings are being finalized for the telecom admin experience."
+                    primaryHref="/noc"
+                    primaryLabel="Back to Dashboard"
+                  />
+                ),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        element: <RequireRole roles={['customer']} redirectTo="/" />,
+        children: [
+          {
+            path: '/portal',
+            element: <AppShell />,
+            children: [
+              { index: true, element: <Lazy><CustomerDashboardPage /></Lazy> },
+              { path: 'sites', element: <Lazy><CustomerSitesPage /></Lazy> },
+              { path: 'tickets', element: <Lazy><CustomerTicketsPage /></Lazy> },
+              {
+                path: 'tickets/new',
+                element: (
+                  <SharedPlaceholderPage
+                    title="Raise Ticket"
+                    description="Ticket creation form is being aligned with customer workflow and SLA templates. Use the ticket list for current activity."
+                    primaryHref="/portal/tickets"
+                    primaryLabel="Open Tickets"
+                  />
+                ),
+              },
+              { path: 'billing', element: <Lazy><CustomerBillingPage /></Lazy> },
+              { path: 'reports/sla', element: <Lazy><CustomerReportsPage /></Lazy> },
+            ],
+          },
+        ],
+      },
+      {
+        element: <RequireRole roles={['partner']} redirectTo="/" />,
+        children: [
+          {
+            path: '/partner',
+            element: <AppShell />,
+            children: [
+              { index: true, element: <Lazy><PartnerDashboardPage /></Lazy> },
+              { path: 'pipeline', element: <Lazy><PartnerPipelinePage /></Lazy> },
+              { path: 'clients', element: <Lazy><PartnerClientsPage /></Lazy> },
+              { path: 'commissions', element: <Lazy><PartnerCommissionsPage /></Lazy> },
+              { path: 'onboarding', element: <Lazy><PartnerOnboardingPage /></Lazy> },
             ],
           },
         ],

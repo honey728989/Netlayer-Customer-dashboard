@@ -19,12 +19,37 @@ function normalizeRole(user: Partial<AuthUser> & { roles?: BackendRole[] }): Use
     return user.role as UserRole
   }
 
-  if (user.roles?.some((role) => role === 'SUPER_ADMIN' || role === 'NOC_ENGINEER')) {
+  if (
+    user.roles?.some(
+      (role) =>
+        role === 'SUPER_ADMIN' ||
+        role === 'NOC_ENGINEER' ||
+        role === 'SALES_EXECUTIVE' ||
+        role === 'FINANCE_USER' ||
+        role === 'FIELD_ENGINEER',
+    )
+  ) {
     return 'admin'
   }
 
   if (user.roles?.some((role) => role === 'PARTNER_ADMIN' || role === 'PARTNER_USER')) {
     return 'partner'
+  }
+
+  if (user.roles?.some((role) => role === 'ENTERPRISE_ADMIN' || role === 'ENTERPRISE_USER')) {
+    return 'customer'
+  }
+
+  if (user.accountScope === 'partner') {
+    return 'partner'
+  }
+
+  if (user.accountScope === 'customer') {
+    return 'customer'
+  }
+
+  if (user.accountScope === 'platform' || user.accountScope === 'internal') {
+    return 'admin'
   }
 
   return 'customer'
