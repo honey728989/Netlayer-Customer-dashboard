@@ -24,6 +24,43 @@ interface FormState {
   isActive: boolean
 }
 
+const accessPresets: Array<{
+  label: string
+  role: FormState['role']
+  accessLevel: string
+  scopeMode: FormState['scopeMode']
+  description: string
+}> = [
+  {
+    label: 'Enterprise Admin',
+    role: 'ENTERPRISE_ADMIN',
+    accessLevel: 'OPERATIONS',
+    scopeMode: 'ALL_SITES',
+    description: 'Full customer portfolio access for the main customer admin.',
+  },
+  {
+    label: 'Finance User',
+    role: 'ENTERPRISE_USER',
+    accessLevel: 'FINANCE',
+    scopeMode: 'ALL_SITES',
+    description: 'Billing, invoices, and collections visibility across the account.',
+  },
+  {
+    label: 'Branch Manager',
+    role: 'ENTERPRISE_USER',
+    accessLevel: 'OPERATIONS',
+    scopeMode: 'SELECTED_SITES',
+    description: 'Operational control for selected branch or city sites only.',
+  },
+  {
+    label: 'View Only',
+    role: 'ENTERPRISE_USER',
+    accessLevel: 'VIEW',
+    scopeMode: 'SELECTED_SITES',
+    description: 'Read-only visibility for assigned sites and shared reports.',
+  },
+]
+
 const defaultFormState: FormState = {
   email: '',
   fullName: '',
@@ -142,6 +179,14 @@ export function CustomerAccessPage() {
       }),
     }
   }, [contacts])
+  const selectedGroupSummaries = useMemo(
+    () =>
+      (siteGroups as CustomerSiteGroup[]).map((group) => ({
+        ...group,
+        siteIds: sites.filter((site) => group.siteNames.includes(site.name)).map((site) => site.id),
+      })),
+    [siteGroups, sites],
+  )
 
   const refreshAccessWorkspace = async () => {
     await Promise.all([
@@ -231,6 +276,43 @@ export function CustomerAccessPage() {
     })
   }
 
+  const applyPreset = (preset: (typeof accessPresets)[number]) => {
+    setFeedback(null)
+    setForm((current) => ({
+      ...current,
+      role: preset.role,
+      accessLevel: preset.accessLevel,
+      scopeMode: preset.scopeMode,
+      siteIds: preset.scopeMode === 'ALL_SITES' ? [] : current.siteIds,
+    }))
+  }
+
+  const applySiteGroup = (groupId: string) => {
+    const group = selectedGroupSummaries.find((item) => item.id === groupId)
+    if (!group) return
+
+    setFeedback(null)
+    setForm((current) => ({
+      ...current,
+      scopeMode: 'SELECTED_SITES',
+      siteIds: Array.from(new Set(group.siteIds)),
+    }))
+  }
+
+  const prefillFromContact = (contact: CustomerContact, accessLevel: string, scopeMode: FormState['scopeMode']) => {
+    setFeedback(null)
+    setEditingUserId(null)
+    setForm((current) => ({
+      ...current,
+      fullName: contact.name,
+      email: contact.email ?? '',
+      accessLevel,
+      scopeMode,
+      role: accessLevel === 'FINANCE' ? 'ENTERPRISE_USER' : current.role,
+      siteIds: scopeMode === 'ALL_SITES' ? [] : current.siteIds,
+    }))
+  }
+
   return (
     <div className="space-y-5 p-5 animate-fade-in">
       <PageHeader
@@ -260,6 +342,20 @@ export function CustomerAccessPage() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card title={editingUserId ? 'Edit Portal User' : 'Add Portal User'}>
+          <div className="mb-4 grid gap-2 md:grid-cols-2">
+            {accessPresets.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="rounded-lg border border-border bg-surface-2 px-3 py-3 text-left transition-colors hover:bg-surface-3"
+                onClick={() => applyPreset(preset)}
+              >
+                <p className="text-xs font-semibold text-white">{preset.label}</p>
+                <p className="mt-1 text-[11px] text-dim">{preset.description}</p>
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <label className="text-[11px] text-muted">
               Full Name
@@ -306,6 +402,27 @@ export function CustomerAccessPage() {
               User is active and can log in
             </label>
           </div>
+
+          {form.scopeMode === 'SELECTED_SITES' && selectedGroupSummaries.length > 0 ? (
+            <div className="mt-4 rounded-lg border border-border bg-surface-2 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold text-white">Quick Site Group Scope</p>
+                <span className="text-[10px] text-dim">Apply a region or branch group to prefill site assignments.</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedGroupSummaries.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className="rounded-full border border-border px-2.5 py-1 text-[10px] text-dim transition-colors hover:bg-surface-3"
+                    onClick={() => applySiteGroup(group.id)}
+                  >
+                    {group.name} · {group.memberCount}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {form.scopeMode === 'SELECTED_SITES' ? (
             <div className="mt-4 rounded-lg border border-border bg-surface-2 p-3">
@@ -396,6 +513,21 @@ export function CustomerAccessPage() {
                         <div key={contact.id} className="rounded-md bg-surface px-3 py-2">
                           <p className="text-white">{contact.name}</p>
                           <p className="mt-0.5 text-dim">{contact.email ?? contact.phone ?? contact.role ?? contact.designation ?? 'Mapped contact'}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="btn-ghost py-1 text-[10px]"
+                              onClick={() =>
+                                prefillFromContact(
+                                  contact,
+                                  section.label === 'Billing & Collections' ? 'FINANCE' : 'OPERATIONS',
+                                  section.label === 'Escalation Matrix' ? 'ALL_SITES' : 'SELECTED_SITES',
+                                )
+                              }
+                            >
+                              Use for New User
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
