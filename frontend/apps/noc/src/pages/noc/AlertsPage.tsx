@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { alertsApi } from '@netlayer/api'
 import { useAlertStore } from '@/store'
@@ -32,7 +33,7 @@ function AlertRow({ alert }: { alert: Alert }) {
         <AlertPriorityBadge priority={alert.priority} />
       </td>
       <td className="table-td">
-        <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>{alert.message}</p>
+        <Link to={`/noc/alerts/${alert.id}`} className="font-medium text-xs hover:text-white" style={{ color: 'var(--text-primary)' }}>{alert.message}</Link>
         <p className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text-dim)' }}>
           {alert.source?.toUpperCase()} · {alert.site_name ?? alert.siteName}
         </p>

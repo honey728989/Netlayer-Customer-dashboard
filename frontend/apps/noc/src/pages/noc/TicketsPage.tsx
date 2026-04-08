@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Search, Clock, CheckCircle, AlertCircle, Loader } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
@@ -53,9 +54,9 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
         </span>
       </td>
       <td className="table-td">
-        <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>
+        <Link to={`/noc/tickets/${ticket.id}`} className="font-medium text-xs hover:text-white" style={{ color: 'var(--text-primary)' }}>
           {ticket.title ?? ticket.subject}
-        </p>
+        </Link>
         <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
           {ticket.customer_name ?? ticket.customerName} · {ticket.site_name ?? ticket.siteName ?? 'No site'}
         </p>

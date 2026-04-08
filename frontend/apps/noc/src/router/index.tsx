@@ -9,8 +9,11 @@ import { PageLoader } from '@netlayer/ui'
 
 const DashboardPage  = lazy(() => import('@/pages/noc/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const SitesPage      = lazy(() => import('@/pages/noc/SitesPage').then(m => ({ default: m.SitesPage })))
+const AdminSiteDetailPage = lazy(() => import('@/pages/noc/AdminSiteDetailPage').then(m => ({ default: m.AdminSiteDetailPage })))
 const TicketsPage    = lazy(() => import('@/pages/noc/TicketsPage').then(m => ({ default: m.TicketsPage })))
+const AdminTicketDetailPage = lazy(() => import('@/pages/noc/AdminTicketDetailPage').then(m => ({ default: m.AdminTicketDetailPage })))
 const AlertsPage     = lazy(() => import('@/pages/noc/AlertsPage').then(m => ({ default: m.AlertsPage })))
+const AdminAlertDetailPage = lazy(() => import('@/pages/noc/AdminAlertDetailPage').then(m => ({ default: m.AdminAlertDetailPage })))
 const CustomersPage  = lazy(() => import('@/pages/noc/CustomersPage').then(m => ({ default: m.CustomersPage })))
 const AdminCustomerDetailPage = lazy(() => import('@/pages/noc/AdminCustomerDetailPage').then(m => ({ default: m.AdminCustomerDetailPage })))
 const PartnersPage   = lazy(() => import('@/pages/noc/PartnersPage').then(m => ({ default: m.PartnersPage })))
@@ -70,9 +73,12 @@ const router = createBrowserRouter([
             children: [
               { index: true,        element: <Lazy><DashboardPage /></Lazy> },
               { path: 'sites',      element: <Lazy><SitesPage /></Lazy> },
+              { path: 'sites/:siteId', element: <Lazy><AdminSiteDetailPage /></Lazy> },
               { path: 'monitoring', element: <Lazy><MonitoringPage /></Lazy> },
               { path: 'alerts',     element: <Lazy><AlertsPage /></Lazy> },
+              { path: 'alerts/:alertId', element: <Lazy><AdminAlertDetailPage /></Lazy> },
               { path: 'tickets',    element: <Lazy><TicketsPage /></Lazy> },
+              { path: 'tickets/:ticketId', element: <Lazy><AdminTicketDetailPage /></Lazy> },
               { path: 'bandwidth',  element: <Lazy><BandwidthPage /></Lazy> },
               { path: 'reports',    element: <Lazy><ReportsPage /></Lazy> },
               { path: 'customers',  element: <Lazy><CustomersPage /></Lazy> },

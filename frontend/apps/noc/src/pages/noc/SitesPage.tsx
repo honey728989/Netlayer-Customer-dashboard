@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { useSites } from '@/hooks/useQueries'
 import { SiteDrawer } from '@/components/sites/SiteDrawer'
@@ -127,7 +128,7 @@ export function SitesPage() {
                     <tr key={s.id} className="table-row cursor-pointer"
                         onClick={() => handleRowClick(s.id)}>
                       <td className="table-td">
-                        <p className="font-medium text-xs" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
+                        <Link to={`/noc/sites/${s.id}`} className="font-medium text-xs hover:text-white" style={{ color: 'var(--text-primary)' }}>{s.name}</Link>
                         <p className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>{s.code ?? ''}</p>
                       </td>
                       <td className="table-td"><SiteStatusDot status={s.status} /></td>
