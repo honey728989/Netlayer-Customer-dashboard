@@ -1,14 +1,20 @@
+import crypto from "node:crypto";
 import { FastifyPluginAsync } from "fastify";
 
 import { ServiceEnv, createServiceApp, query, requireAuth } from "@netlayer/platform";
 import { buildCustomerDashboardUrl } from "./grafana";
 
 const routes: FastifyPluginAsync = async (app) => {
+  const canManagePlatformWorkspace = (user: any) =>
+    Boolean(
+      user &&
+        !user.customerId &&
+        user.roles?.some((role: string) => role === "SUPER_ADMIN" || role === "NOC_ENGINEER")
+    );
   const canManageCustomerWorkspace = (user: any, customerId: string) =>
     Boolean(
       user &&
-        ((!user.customerId &&
-          user.roles?.some((role: string) => role === "SUPER_ADMIN" || role === "NOC_ENGINEER")) ||
+        ((canManagePlatformWorkspace(user)) ||
           (user.customerId === customerId &&
             user.roles?.some((role: string) => role === "ENTERPRISE_ADMIN" || role === "SUPER_ADMIN")))
     );
@@ -180,6 +186,223 @@ const routes: FastifyPluginAsync = async (app) => {
     );
 
     return result.rows;
+  });
+
+  app.post("/customers", { preHandler: [requireAuth] }, async (request, reply) => {
+    const user = request.auth!;
+    if (!canManagePlatformWorkspace(user)) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const body = request.body as {
+      name?: string;
+      code?: string;
+      tier?: string;
+      industry?: string;
+      accountManager?: string;
+      slaProfile?: string;
+      billingEmail?: string;
+      primaryContactName?: string;
+      primaryContactPhone?: string;
+      primaryContactEmail?: string;
+      zohoCustomerId?: string;
+      gstin?: string;
+      monthlyRecurringRevenue?: number;
+      annualContractValue?: number;
+      portalAdminEmail?: string;
+      portalAdminFullName?: string;
+      portalAdminPassword?: string;
+    };
+
+    if (
+      !body.name ||
+      !body.tier ||
+      !body.accountManager ||
+      !body.slaProfile ||
+      !body.portalAdminEmail ||
+      !body.portalAdminFullName ||
+      !body.portalAdminPassword
+    ) {
+      return reply.code(400).send({ message: "name, tier, accountManager, slaProfile, and portal admin credentials are required" });
+    }
+
+    const normalizedEmail = body.portalAdminEmail.trim().toLowerCase();
+    const existingUser = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id FROM users WHERE email = $1`,
+      [normalizedEmail]
+    );
+
+    if (existingUser.rows[0]) {
+      return reply.code(409).send({ message: "Portal admin email already exists" });
+    }
+
+    const customerCode =
+      body.code?.trim().toUpperCase() ||
+      `CUST-${body.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase() || "NEW"}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+    const existingCustomer = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `SELECT id FROM customers WHERE code = $1`,
+      [customerCode]
+    );
+
+    if (existingCustomer.rows[0]) {
+      return reply.code(409).send({ message: "Customer code already exists" });
+    }
+
+    const insertedCustomer = await query<{
+      id: string;
+      name: string;
+      code: string;
+      tier: string;
+      status: string;
+      account_manager: string;
+      industry: string | null;
+      billing_email: string | null;
+      primary_contact_name: string | null;
+      primary_contact_phone: string | null;
+      zoho_customer_id: string | null;
+      gstin: string | null;
+      monthly_recurring_revenue: string;
+      annual_contract_value: string;
+      sla_profile: string;
+      created_at: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO customers (
+          code,
+          name,
+          tier,
+          status,
+          account_manager,
+          sla_profile,
+          industry,
+          billing_email,
+          primary_contact_name,
+          primary_contact_phone,
+          zoho_customer_id,
+          gstin,
+          monthly_recurring_revenue,
+          annual_contract_value
+        )
+        VALUES ($1, $2, $3, 'ACTIVE', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING
+          id,
+          name,
+          code,
+          tier,
+          status,
+          account_manager,
+          industry,
+          billing_email,
+          primary_contact_name,
+          primary_contact_phone,
+          zoho_customer_id,
+          gstin,
+          monthly_recurring_revenue::text,
+          annual_contract_value::text,
+          sla_profile,
+          created_at::text
+      `,
+      [
+        customerCode,
+        body.name.trim(),
+        body.tier.trim().toUpperCase(),
+        body.accountManager.trim(),
+        body.slaProfile.trim().toUpperCase(),
+        body.industry?.trim() || null,
+        body.billingEmail?.trim() || null,
+        body.primaryContactName?.trim() || null,
+        body.primaryContactPhone?.trim() || null,
+        body.zohoCustomerId?.trim() || null,
+        body.gstin?.trim() || null,
+        Number(body.monthlyRecurringRevenue ?? 0),
+        Number(body.annualContractValue ?? 0)
+      ]
+    );
+
+    const customerRow = insertedCustomer.rows[0];
+    if (!customerRow) {
+      return reply.code(500).send({ message: "Failed to create customer" });
+    }
+
+    if (body.primaryContactName?.trim()) {
+      await query(
+        process.env.DATABASE_URL!,
+        `
+          INSERT INTO customer_contacts (
+            customer_id,
+            name,
+            email,
+            phone,
+            designation,
+            is_primary,
+            contact_type
+          )
+          VALUES ($1, $2, $3, $4, $5, TRUE, 'ESCALATION')
+        `,
+        [
+          customerRow.id,
+          body.primaryContactName.trim(),
+          body.primaryContactEmail?.trim() || body.billingEmail?.trim() || null,
+          body.primaryContactPhone?.trim() || null,
+          "Primary Contact"
+        ]
+      );
+    }
+
+    const insertedUser = await query<{ id: string }>(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO users (customer_id, email, full_name, password_hash, is_active)
+        VALUES ($1, $2, $3, crypt($4, gen_salt('bf')), TRUE)
+        RETURNING id
+      `,
+      [customerRow.id, normalizedEmail, body.portalAdminFullName.trim(), body.portalAdminPassword]
+    );
+
+    const portalAdminUserId = insertedUser.rows[0]?.id;
+    if (!portalAdminUserId) {
+      return reply.code(500).send({ message: "Customer created but portal admin creation failed" });
+    }
+
+    await query(
+      process.env.DATABASE_URL!,
+      `
+        INSERT INTO user_roles (user_id, role_id)
+        SELECT $1, id
+        FROM roles
+        WHERE name = 'ENTERPRISE_ADMIN'
+        ON CONFLICT DO NOTHING
+      `,
+      [portalAdminUserId]
+    );
+
+    await writeAuditLog(user.userId, "customer", customerRow.id, "customer.created", {
+      code: customerRow.code,
+      portalAdminEmail: normalizedEmail,
+      zohoCustomerId: customerRow.zoho_customer_id
+    });
+
+    reply.code(201);
+    return {
+      id: customerRow.id,
+      name: customerRow.name,
+      code: customerRow.code,
+      tier: customerRow.tier,
+      status: customerRow.status,
+      industry: customerRow.industry,
+      account_manager: customerRow.account_manager,
+      sla_profile: customerRow.sla_profile,
+      billing_email: customerRow.billing_email,
+      primary_contact_name: customerRow.primary_contact_name,
+      primary_contact_phone: customerRow.primary_contact_phone,
+      monthly_recurring_revenue: Number(customerRow.monthly_recurring_revenue ?? 0),
+      annual_contract_value: Number(customerRow.annual_contract_value ?? 0),
+      created_at: customerRow.created_at
+    };
   });
 
   app.get("/customers/:id", { preHandler: [requireAuth] }, async (request, reply) => {

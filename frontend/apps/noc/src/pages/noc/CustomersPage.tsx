@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Users, TrendingUp, Building2 } from 'lucide-react'
+import { Search, Users, TrendingUp, Building2, Plus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { customersApi } from '@netlayer/api'
 import type { Customer } from '@netlayer/api'
@@ -56,6 +56,9 @@ export function CustomersPage() {
           <h1 className="font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Customers</h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>All active enterprise and business accounts</p>
         </div>
+        <Link to="/noc/customers/new" className="btn-primary gap-1.5">
+          <Plus size={13} /> New Customer
+        </Link>
       </div>
 
       {/* Summary Cards */}

@@ -3,6 +3,7 @@ import type {
   Customer,
   CustomerContact,
   CustomerContactPayload,
+  CustomerCreatePayload,
   CustomerProfile,
   CustomerProfilePayload,
   Partner,
@@ -137,6 +138,9 @@ function toPaginated<T>(raw: unknown, params?: QueryParams): PaginatedResponse<T
 export const customersApi = {
   list: (params?: QueryParams) =>
     http.get('/customers', { params }).then((r) => toPaginated<Customer>(r.data, params)),
+
+  create: (payload: CustomerCreatePayload) =>
+    http.post<Customer>('/customers', payload).then((r) => r.data),
 
   getById: (id: string) =>
     http.get<Customer>(`/customers/${id}`).then((r) => r.data),

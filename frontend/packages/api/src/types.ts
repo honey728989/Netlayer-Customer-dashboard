@@ -281,6 +281,26 @@ export interface CustomerContactPayload {
   contactType?: string
 }
 
+export interface CustomerCreatePayload {
+  name: string
+  code?: string
+  tier: string
+  industry?: string
+  accountManager: string
+  slaProfile: string
+  billingEmail?: string
+  primaryContactName?: string
+  primaryContactPhone?: string
+  primaryContactEmail?: string
+  zohoCustomerId?: string
+  gstin?: string
+  monthlyRecurringRevenue?: number
+  annualContractValue?: number
+  portalAdminEmail: string
+  portalAdminFullName: string
+  portalAdminPassword: string
+}
+
 // ─── Partners ─────────────────────────────────────────────────────────────────
 
 export interface Partner {
