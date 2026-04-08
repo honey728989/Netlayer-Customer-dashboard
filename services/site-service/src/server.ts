@@ -318,6 +318,225 @@ const routes: FastifyPluginAsync = async (app) => {
     return result.rows;
   });
 
+  app.get("/customers/:id/portal-users", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const result = await query<{
+      id: string;
+      email: string;
+      full_name: string;
+      is_active: boolean;
+      roles: string[];
+      assigned_sites: string;
+      access_levels: string[];
+      scope_mode: string;
+      site_names: string[];
+      created_at: string;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          u.id,
+          u.email,
+          u.full_name,
+          u.is_active,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.name), NULL) AS roles,
+          COUNT(DISTINCT cusa.site_id)::text AS assigned_sites,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT cusa.access_level), NULL) AS access_levels,
+          CASE
+            WHEN COUNT(DISTINCT cusa.site_id) = 0 THEN 'ALL_SITES'
+            ELSE 'SELECTED_SITES'
+          END AS scope_mode,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT s.name), NULL) AS site_names,
+          u.created_at::text AS created_at
+        FROM users u
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        LEFT JOIN customer_user_site_access cusa ON cusa.user_id = u.id
+        LEFT JOIN sites s ON s.id = cusa.site_id
+        WHERE u.customer_id = $1
+        GROUP BY u.id
+        ORDER BY
+          CASE WHEN ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.name), NULL) @> ARRAY['ENTERPRISE_ADMIN']::varchar[] THEN 0 ELSE 1 END,
+          u.full_name
+      `,
+      [params.id]
+    );
+
+    return result.rows.map((row) => {
+      const roles = row.roles ?? [];
+      const accessLevels = row.access_levels ?? [];
+      const siteNames = row.site_names ?? [];
+      let accessProfile = "Customer User";
+      if (roles.includes("ENTERPRISE_ADMIN")) accessProfile = "Customer Admin";
+      else if (accessLevels.includes("FINANCE")) accessProfile = "Finance User";
+      else if (row.scope_mode === "SELECTED_SITES" && Number(row.assigned_sites) <= 2) accessProfile = "Branch Manager";
+      else if (accessLevels.includes("OPERATIONS")) accessProfile = "Operations User";
+
+      return {
+        id: row.id,
+        email: row.email,
+        fullName: row.full_name,
+        isActive: row.is_active,
+        roles,
+        accessLevels,
+        scopeMode: row.scope_mode,
+        assignedSites: Number(row.assigned_sites ?? 0),
+        siteNames,
+        accessProfile,
+        createdAt: row.created_at
+      };
+    });
+  });
+
+  app.get("/customers/:id/site-groups", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const manualGroups = await query<{
+      id: string;
+      name: string;
+      description: string | null;
+      group_type: string;
+      member_count: string;
+      site_names: string[];
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          csg.id,
+          csg.name,
+          csg.description,
+          csg.group_type,
+          COUNT(csgm.site_id)::text AS member_count,
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT s.name), NULL) AS site_names
+        FROM customer_site_groups csg
+        LEFT JOIN customer_site_group_members csgm ON csgm.group_id = csg.id
+        LEFT JOIN sites s ON s.id = csgm.site_id
+        WHERE csg.customer_id = $1
+        GROUP BY csg.id
+        ORDER BY csg.name
+      `,
+      [params.id]
+    );
+
+    const cityGroups = await query<{
+      city: string | null;
+      member_count: string;
+      site_names: string[];
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          city,
+          COUNT(*)::text AS member_count,
+          ARRAY_REMOVE(ARRAY_AGG(name), NULL) AS site_names
+        FROM sites
+        WHERE customer_id = $1
+        GROUP BY city
+        ORDER BY city
+      `,
+      [params.id]
+    );
+
+    return [
+      ...manualGroups.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        groupType: row.group_type,
+        memberCount: Number(row.member_count ?? 0),
+        siteNames: row.site_names ?? []
+      })),
+      ...cityGroups.rows
+        .filter((row) => row.city)
+        .map((row) => ({
+          id: `city-${row.city}`,
+          name: `${row.city} Sites`,
+          description: "Auto-grouped by city for customer operations",
+          groupType: "AUTO_CITY",
+          memberCount: Number(row.member_count ?? 0),
+          siteNames: row.site_names ?? []
+        }))
+    ];
+  });
+
+  app.get("/customers/:id/site-access", { preHandler: [requireAuth] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const user = request.auth!;
+    if (user.customerId && user.customerId !== params.id) {
+      return reply.code(403).send({ message: "Forbidden" });
+    }
+
+    const result = await query<{
+      site_id: string;
+      site_name: string;
+      city: string | null;
+      status: string;
+      user_id: string | null;
+      full_name: string | null;
+      email: string | null;
+      access_level: string | null;
+    }>(
+      process.env.DATABASE_URL!,
+      `
+        SELECT
+          s.id AS site_id,
+          s.name AS site_name,
+          s.city,
+          s.status,
+          u.id AS user_id,
+          u.full_name,
+          u.email,
+          cusa.access_level
+        FROM sites s
+        LEFT JOIN customer_user_site_access cusa ON cusa.site_id = s.id
+        LEFT JOIN users u ON u.id = cusa.user_id
+        WHERE s.customer_id = $1
+        ORDER BY s.name, u.full_name NULLS LAST
+      `,
+      [params.id]
+    );
+
+    const grouped = new Map<string, {
+      siteId: string;
+      siteName: string;
+      city: string | null;
+      status: string;
+      assignments: Array<{ userId: string; fullName: string; email: string; accessLevel: string }>;
+    }>();
+
+    for (const row of result.rows) {
+      if (!grouped.has(row.site_id)) {
+        grouped.set(row.site_id, {
+          siteId: row.site_id,
+          siteName: row.site_name,
+          city: row.city,
+          status: row.status,
+          assignments: []
+        });
+      }
+
+      if (row.user_id && row.full_name && row.email && row.access_level) {
+        grouped.get(row.site_id)!.assignments.push({
+          userId: row.user_id,
+          fullName: row.full_name,
+          email: row.email,
+          accessLevel: row.access_level
+        });
+      }
+    }
+
+    return Array.from(grouped.values());
+  });
+
   app.get("/customers/:id/sla", { preHandler: [requireAuth] }, async (request, reply) => {
     const params = request.params as { id: string };
     const result = await query(

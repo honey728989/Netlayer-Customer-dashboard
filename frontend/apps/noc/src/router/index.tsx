@@ -29,6 +29,7 @@ const CustomerBillingPage = lazy(() => import('../../../portal/src/pages/Billing
 const CustomerReportsPage = lazy(() => import('../../../portal/src/pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
 const CustomerFeasibilityPage = lazy(() => import('@/pages/portal/CustomerFeasibilityPage').then(m => ({ default: m.CustomerFeasibilityPage })))
 const CustomerNotificationsPage = lazy(() => import('@/pages/portal/CustomerNotificationsPage').then(m => ({ default: m.CustomerNotificationsPage })))
+const CustomerAccessPage = lazy(() => import('@/pages/portal/CustomerAccessPage').then(m => ({ default: m.CustomerAccessPage })))
 const PartnerDashboardPage = lazy(() => import('../../../partner/src/pages/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })))
 const PartnerPipelinePage = lazy(() => import('../../../partner/src/pages/PipelinePage').then(m => ({ default: m.PipelinePage })))
 const PartnerClientsPage = lazy(() => import('../../../partner/src/pages/ClientsPage').then(m => ({ default: m.ClientsPage })))
@@ -97,6 +98,7 @@ const router = createBrowserRouter([
               { path: 'tickets/:ticketId', element: <Lazy><CustomerTicketDetailPage /></Lazy> },
               { path: 'tickets/new', element: <Lazy><CustomerRaiseTicketPage /></Lazy> },
               { path: 'notifications', element: <Lazy><CustomerNotificationsPage /></Lazy> },
+              { path: 'access', element: <Lazy><CustomerAccessPage /></Lazy> },
               { path: 'billing', element: <Lazy><CustomerBillingPage /></Lazy> },
               { path: 'feasibility', element: <Lazy><CustomerFeasibilityPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><CustomerReportsPage /></Lazy> },

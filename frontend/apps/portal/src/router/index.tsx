@@ -10,6 +10,7 @@ const CustomerSites     = lazy(() => import('../pages/CustomerSites').then(m => 
 const CustomerTickets   = lazy(() => import('../pages/CustomerTickets').then(m => ({ default: m.CustomerTickets })))
 const BillingPage       = lazy(() => import('../pages/BillingPage').then(m => ({ default: m.BillingPage })))
 const SlaReportsPage    = lazy(() => import('../pages/SlaReportsPage').then(m => ({ default: m.SlaReportsPage })))
+const CustomerAccessPage = lazy(() => import('../../../noc/src/pages/portal/CustomerAccessPage').then(m => ({ default: m.CustomerAccessPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
               { index: true,         element: <Lazy><CustomerDashboard /></Lazy> },
               { path: 'sites',       element: <Lazy><CustomerSites /></Lazy> },
               { path: 'tickets',     element: <Lazy><CustomerTickets /></Lazy> },
+              { path: 'access',      element: <Lazy><CustomerAccessPage /></Lazy> },
               { path: 'billing',     element: <Lazy><BillingPage /></Lazy> },
               { path: 'reports/sla', element: <Lazy><SlaReportsPage /></Lazy> },
             ],

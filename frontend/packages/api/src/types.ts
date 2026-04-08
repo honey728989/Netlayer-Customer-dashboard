@@ -231,6 +231,19 @@ export interface Customer {
   createdAt?: string
 }
 
+export interface CustomerContact {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  role?: string
+  designation?: string
+  is_primary?: boolean
+  isPrimary?: boolean
+  contact_type?: string
+  contactType?: string
+}
+
 // ─── Partners ─────────────────────────────────────────────────────────────────
 
 export interface Partner {
@@ -414,6 +427,42 @@ export interface SiteBillingSummary {
   contractEndDate?: string | null
   estimatedOutstandingAmount: number
   portfolioSharePct: number
+}
+
+export interface CustomerPortalUser {
+  id: string
+  email: string
+  fullName: string
+  isActive: boolean
+  roles: BackendRole[]
+  accessLevels: string[]
+  scopeMode: 'ALL_SITES' | 'SELECTED_SITES'
+  assignedSites: number
+  siteNames: string[]
+  accessProfile: string
+  createdAt?: string
+}
+
+export interface CustomerSiteGroup {
+  id: string
+  name: string
+  description?: string | null
+  groupType: string
+  memberCount: number
+  siteNames: string[]
+}
+
+export interface CustomerSiteAccessRow {
+  siteId: string
+  siteName: string
+  city?: string | null
+  status: string
+  assignments: Array<{
+    userId: string
+    fullName: string
+    email: string
+    accessLevel: string
+  }>
 }
 
 export interface PaymentRecord {

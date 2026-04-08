@@ -1,6 +1,7 @@
 import { http } from './client'
 import type {
   Customer,
+  CustomerContact,
   Partner,
   Lead,
   Service,
@@ -10,6 +11,9 @@ import type {
   BillingLedgerSummary,
   PaymentRecord,
   SiteBillingSummary,
+  CustomerPortalUser,
+  CustomerSiteGroup,
+  CustomerSiteAccessRow,
   Commission,
   PaginatedResponse,
   QueryParams,
@@ -138,6 +142,9 @@ export const customersApi = {
   getBilling: (id: string) =>
     http.get(`/customers/${id}/billing`).then((r) => r.data),
 
+  getContacts: (id: string) =>
+    http.get<CustomerContact[]>(`/customers/${id}/contacts`).then((r) => Array.isArray(r.data) ? r.data : []),
+
   getLedger: (id: string) =>
     http.get<BillingLedgerSummary>(`/customers/${id}/ledger`).then((r) => r.data),
 
@@ -146,6 +153,15 @@ export const customersApi = {
 
   getSiteBilling: (id: string) =>
     http.get<SiteBillingSummary[]>(`/customers/${id}/site-billing`).then((r) => r.data),
+
+  getPortalUsers: (id: string) =>
+    http.get<CustomerPortalUser[]>(`/customers/${id}/portal-users`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  getSiteGroups: (id: string) =>
+    http.get<CustomerSiteGroup[]>(`/customers/${id}/site-groups`).then((r) => Array.isArray(r.data) ? r.data : []),
+
+  getSiteAccess: (id: string) =>
+    http.get<CustomerSiteAccessRow[]>(`/customers/${id}/site-access`).then((r) => Array.isArray(r.data) ? r.data : []),
 
   createPaymentLink: (id: string, payload: { amount: number; invoiceId?: string; description?: string }) =>
     http.post<PaymentRecord>(`/customers/${id}/payment-links`, payload).then((r) => r.data),
