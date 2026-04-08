@@ -9,6 +9,23 @@ function formatDate(value?: string) {
   return new Date(value).toLocaleString('en-IN')
 }
 
+function getSlaMeta(ticket: any) {
+  const dueAt = ticket?.resolution_due_at ?? ticket?.resolutionDueAt
+  if (!dueAt) {
+    return { label: 'No SLA deadline', color: 'var(--text-dim)' }
+  }
+
+  const diff = new Date(dueAt).getTime() - Date.now()
+  if (diff <= 0) {
+    return { label: 'SLA breached', color: 'var(--status-offline)' }
+  }
+  if (diff <= 2 * 60 * 60 * 1000) {
+    return { label: 'SLA at risk', color: 'var(--status-degraded)' }
+  }
+
+  return { label: 'SLA healthy', color: 'var(--status-online)' }
+}
+
 export function CustomerTicketDetailPage() {
   const { ticketId = '' } = useParams()
   const queryClient = useQueryClient()
@@ -37,6 +54,28 @@ export function CustomerTicketDetailPage() {
   }
 
   const comments = (ticket?.comments ?? []) as TicketComment[]
+  const slaMeta = getSlaMeta(ticket)
+  const timelineItems = [
+    ticket?.created_at ?? ticket?.createdAt
+      ? {
+          label: 'Ticket opened',
+          detail: 'Issue logged in customer portal',
+          at: ticket.created_at ?? ticket.createdAt,
+        }
+      : null,
+    ...comments.map((comment) => ({
+      label: comment.author_name ?? comment.authorName ?? 'Support update',
+      detail: comment.body,
+      at: comment.created_at ?? comment.createdAt,
+    })),
+    ticket?.resolved_at ?? ticket?.resolvedAt
+      ? {
+          label: 'Ticket resolved',
+          detail: ticket.resolution_summary ?? 'Resolution shared by support team',
+          at: ticket.resolved_at ?? ticket.resolvedAt,
+        }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; detail: string; at?: string }>
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -47,7 +86,29 @@ export function CustomerTicketDetailPage() {
 
       <div className="flex flex-wrap gap-2">
         <Link to="/portal/tickets" className="btn-ghost">Back to Tickets</Link>
-        <Link to="/portal/tickets/new" className="btn-primary">Raise Another Ticket</Link>
+        <Link to={ticket?.site_id || ticket?.siteId ? `/portal/tickets/new?siteId=${ticket.site_id ?? ticket.siteId}` : '/portal/tickets/new'} className="btn-primary">
+          Raise Another Ticket
+        </Link>
+      </div>
+
+      <div
+        className="rounded-xl border px-4 py-3"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--border) 70%, transparent)',
+          backgroundColor: `color-mix(in srgb, ${slaMeta.color} 10%, var(--bg-surface-2))`,
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>SLA Status</p>
+            <p className="mt-1 font-mono text-sm font-semibold" style={{ color: slaMeta.color }}>{slaMeta.label}</p>
+          </div>
+          {(ticket?.site_name ?? ticket?.siteName) ? (
+            <Link to={`/portal/sites/${ticket?.site_id ?? ticket?.siteId}`} className="text-[11px] hover:underline" style={{ color: 'var(--brand)' }}>
+              View Site
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_0.9fr]">
@@ -123,6 +184,23 @@ export function CustomerTicketDetailPage() {
           </div>
         </Card>
       </div>
+
+      <Card title="Ticket Timeline">
+        <div className="space-y-3">
+          {timelineItems.map((item, index) => (
+            <div key={`${item.label}-${index}`} className="flex gap-3 rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-surface-2)' }}>
+              <div className="mt-1 h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--brand)' }} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{item.label}</p>
+                  <span className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>{formatDate(item.at)}</span>
+                </div>
+                <p className="mt-1 text-xs leading-5" style={{ color: 'var(--text-muted)' }}>{item.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   )
 }

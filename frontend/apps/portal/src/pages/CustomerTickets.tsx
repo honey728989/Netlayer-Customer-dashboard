@@ -90,6 +90,14 @@ export function CustomerTickets() {
     (ticket.title ?? ticket.subject ?? '').toLowerCase().includes(search.toLowerCase()),
   )
   const sites = (sitesResponse?.data ?? []) as Site[]
+  const summary = {
+    open: tickets.filter((ticket) => ['OPEN', 'IN_PROGRESS'].includes(String(ticket.status).toUpperCase())).length,
+    breached: tickets.filter((ticket) => {
+      const dueAt = ticket.resolution_due_at ?? ticket.resolutionDueAt
+      return dueAt ? new Date(dueAt).getTime() <= Date.now() : false
+    }).length,
+    critical: tickets.filter((ticket) => String(ticket.priority).toUpperCase() === 'P1').length,
+  }
 
   return (
     <div className="space-y-5 p-5 animate-fade-in">
@@ -100,9 +108,22 @@ export function CustomerTickets() {
             {ticketsData?.total ?? 0} ticket{(ticketsData?.total ?? 0) !== 1 ? 's' : ''}
           </p>
         </div>
-        <Link to="/portal/tickets/new" className="btn-primary gap-1.5">
+        <Link to={selectedSiteId ? `/portal/tickets/new?siteId=${selectedSiteId}` : '/portal/tickets/new'} className="btn-primary gap-1.5">
           <Plus size={13} /> Raise Ticket
         </Link>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {[
+          ['Open / In Progress', summary.open, 'var(--brand)'],
+          ['Breached SLA', summary.breached, 'var(--status-offline)'],
+          ['Critical Priority', summary.critical, 'var(--status-degraded)'],
+        ].map(([label, value, color]) => (
+          <div key={String(label)} className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-surface-2)' }}>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</p>
+            <p className="mt-1 font-mono text-xl font-semibold" style={{ color: String(color) }}>{value}</p>
+          </div>
+        ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
