@@ -29,7 +29,10 @@
     "../noc/src/components/layout",
     "../noc/src/components/auth",
     "../noc/src/components/tickets",
+    "../noc/src/components/portal",
     "../noc/src/store",
+    "../noc/src/config",
+    "../noc/src/lib",
     "../noc/src/hooks/useWebSockets.ts",
     "../noc/src/hooks/useQueries.ts",
     "../noc/src/services"

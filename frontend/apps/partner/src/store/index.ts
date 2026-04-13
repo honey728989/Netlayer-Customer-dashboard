@@ -1,1 +1,7 @@
-export { useUIStore, useAlertStore, useBandwidthStore, useSiteStatusStore } from '../../../noc/src/store'
+export {
+  useUIStore,
+  useAlertStore,
+  useBandwidthStore,
+  useSiteStatusStore,
+  useCustomerPortalSiteFilterStore,
+} from '../../../noc/src/store'
